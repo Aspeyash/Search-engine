@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       ZYMARG Algolia Search
- * Plugin URI:        https://zymarg.com
+ * Plugin URI:        https://github.com/Aspeyash/Search-engine-
  * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board.
  * Version:           1.0.0
  * Author:            ZYMARG
@@ -12,6 +12,9 @@
  * Domain Path:       /languages
  * Requires at least: 6.0
  * Requires PHP:      7.4
+ * Update URI:        https://github.com/Aspeyash/Search-engine-
+ * GitHub Plugin URI: Aspeyash/Search-engine-
+ * Primary Branch:    main
  * WC requires at least: 6.0
  * WC tested up to:   9.0
  *
@@ -81,6 +84,7 @@ require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-categories.php
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-settings.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-frontend.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-shortcode.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-updater.php';
 
 /**
  * Boot the plugin.
@@ -99,6 +103,18 @@ function zymarg_algolia_boot() {
 	// Frontend.
 	new Zymarg_Algolia_Frontend();
 	new Zymarg_Algolia_Shortcode();
+
+	// GitHub auto-updater (admin only).
+	if ( is_admin() ) {
+		new Zymarg_Algolia_Updater(
+			ZYMARG_ALGOLIA_FILE,
+			array(
+				'owner'  => 'Aspeyash',
+				'repo'   => 'Search-engine-',
+				'branch' => 'main',
+			)
+		);
+	}
 }
 add_action( 'plugins_loaded', 'zymarg_algolia_boot', 20 );
 

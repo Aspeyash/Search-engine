@@ -151,3 +151,48 @@ Edit this plugin to your taste. Code lives in:
 - `zymarg-algolia-search/includes/` — PHP classes
 - `zymarg-algolia-search/assets/css/zymarg-search.css` — brand styles
 - `zymarg-algolia-search/assets/js/zymarg-search.js` — instant search renderer
+
+
+
+---
+
+## 🔄 Auto-updates from GitHub
+
+The plugin includes a built-in GitHub updater. Once installed, your WordPress site will see "Update available" notices in **Plugins → Installed Plugins** whenever you publish a new GitHub Release — exactly like a wordpress.org plugin.
+
+### How to publish a new version
+
+1. **Bump the version number** in two places:
+   - `zymarg-algolia-search/zymarg-algolia-search.php` header → `Version: 1.1.0`
+   - `zymarg-algolia-search/zymarg-algolia-search.php` constant → `define( 'ZYMARG_ALGOLIA_VERSION', '1.1.0' );`
+   - `zymarg-algolia-search/readme.txt` → `Stable tag: 1.1.0`
+
+2. **Commit and push** to `main`:
+   ```
+   git add -A
+   git commit -m "Release 1.1.0"
+   git push origin main
+   ```
+
+3. **Re-zip the plugin folder** (the zip file at the repo root must match the new version):
+   ```
+   zip -r zymarg-algolia-search.zip zymarg-algolia-search
+   ```
+
+4. **Create a GitHub Release**:
+   - Go to <https://github.com/Aspeyash/Search-engine-/releases/new>
+   - Tag version: `v1.1.0` (the `v` prefix is optional but recommended)
+   - Release title: `1.1.0`
+   - Describe what changed (Markdown — appears in the WP "View details" lightbox)
+   - **Attach `zymarg-algolia-search.zip`** as a release asset (drag-drop into the asset area)
+   - Click **Publish release**
+
+5. **Done.** Within ~6 hours every site running the plugin will see an update notice. To force an immediate check, click **"Check for updates"** under the plugin row in WP Admin → Plugins.
+
+### Notes
+
+- The updater checks GitHub every 6 hours (cached). The "Check for updates" link clears the cache.
+- It prefers the attached `zymarg-algolia-search.zip` asset; if no asset is attached it falls back to the GitHub-generated source zip (which works but the folder name is messier — uploading the asset is recommended).
+- Public repos only — no GitHub token needed.
+- Version comparison uses PHP's `version_compare()`, so `1.0.10` is correctly considered higher than `1.0.9`.
+- The updater never auto-installs by itself; the site admin still has to click "Update now" (same as any plugin).
