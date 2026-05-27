@@ -248,12 +248,51 @@ class Zymarg_Algolia_Settings {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( 'Forbidden' );
 		}
+
+		$app_id    = trim( (string) zymarg_algolia_get_setting( 'app_id' ) );
+		$admin_key = trim( (string) zymarg_algolia_get_setting( 'admin_api_key' ) );
+
+		if ( '' === $app_id || '' === $admin_key ) {
+			$this->redirect_with_notice(
+				'error',
+				'Application ID or Admin API Key is empty. Click "Save settings" first, then try Verify again.'
+			);
+			return;
+		}
+
+		// Quick sanity check on the App ID format (Algolia App IDs are exactly 10 uppercase alphanumerics).
+		if ( ! preg_match( '/^[A-Z0-9]{8,16}$/', $app_id ) ) {
+			$this->redirect_with_notice(
+				'error',
+				sprintf(
+					'Application ID looks malformed (got "%s"). It should be 10 uppercase letters/digits, e.g. "L8K9XQYZAB". Re-copy it from your Algolia dashboard.',
+					esc_html( $app_id )
+				)
+			);
+			return;
+		}
+
 		$client = new Zymarg_Algolia_Client();
 		$result = $client->verify();
+
 		if ( is_wp_error( $result ) ) {
-			$this->redirect_with_notice( 'error', 'Algolia connection failed: ' . $result->get_error_message() );
+			$debug    = $client->get_last_debug();
+			$debug_str = '';
+			if ( ! empty( $debug ) ) {
+				$debug_str = sprintf( ' [URL: %s | HTTP %d]', $debug['url'], (int) $debug['code'] );
+			}
+			$this->redirect_with_notice(
+				'error',
+				'Algolia connection failed: ' . $result->get_error_message() . $debug_str
+			);
+			return;
 		}
-		$this->redirect_with_notice( 'success', 'Algolia connection OK. Found ' . ( isset( $result['items'] ) ? count( $result['items'] ) : 0 ) . ' indices.' );
+
+		$count = isset( $result['items'] ) ? count( $result['items'] ) : 0;
+		$this->redirect_with_notice(
+			'success',
+			sprintf( 'Algolia connection OK. Found %d existing indices in your application.', $count )
+		);
 	}
 
 	public function handle_reindex() {
