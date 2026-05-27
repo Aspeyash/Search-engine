@@ -310,8 +310,12 @@ class Zymarg_Algolia_Updater {
 	/**
 	 * After WP unzips the GitHub package, the folder will be named
 	 * something like "Aspeyash-Search-engine--abc1234" (source zipball)
-	 * or "zymarg-algolia-search" (asset zip). Make sure WP installs it
-	 * over the existing plugin folder so the slug stays the same.
+	 * or "zymarg-algolia-search" (asset zip).
+	 *
+	 * If the folder is already named correctly (asset zip case), DO NOTHING.
+	 * Only rename when the source basename differs from our slug. This avoids
+	 * a move-onto-self call that can leave the upgrade folder in a broken
+	 * state on certain hosts (Hostinger Business / cgroup-isolated /tmp).
 	 *
 	 * @param string       $source        Path to extracted folder.
 	 * @param string       $remote_source Remote source.
@@ -326,17 +330,28 @@ class Zymarg_Algolia_Updater {
 			return $source;
 		}
 
-		// Only intervene for our plugin.
+		// Only intervene for our plugin's update.
 		if ( empty( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->plugin_file ) {
 			return $source;
 		}
 
-		$desired = trailingslashit( $remote_source ) . $this->plugin_slug;
-		if ( $source === $desired ) {
+		// If the extracted folder is already named correctly, leave $source untouched.
+		// This is the common case when our pre-built `zymarg-algolia-search.zip`
+		// asset is attached to the GitHub Release.
+		$current_basename = basename( untrailingslashit( $source ) );
+		if ( $current_basename === $this->plugin_slug ) {
 			return $source;
 		}
 
-		// If the extracted folder doesn't match our slug, rename it.
+		// Source is misnamed (e.g. GitHub-generated zipball "owner-repo-sha").
+		// Rename it to our slug.
+		$desired = trailingslashit( $remote_source ) . $this->plugin_slug;
+
+		// Make sure the destination doesn't already exist before renaming.
+		if ( $wp_filesystem->exists( $desired ) ) {
+			$wp_filesystem->delete( $desired, true );
+		}
+
 		if ( $wp_filesystem->move( untrailingslashit( $source ), $desired, true ) ) {
 			return trailingslashit( $desired );
 		}
