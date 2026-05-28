@@ -105,14 +105,23 @@ class Zymarg_Algolia_Frontend {
 	 * Render the search bar HTML. Used by shortcode, Gutenberg block,
 	 * classic widget and the Elementor widget.
 	 *
-	 * @param array $args Optional. Currently supports:
-	 *   - 'stretch' (bool) — drop the max-width cap so the bar fills its container.
+	 * @param array $args Optional. Supported keys:
+	 *   - 'stretch'    (bool) — drop max-width so the bar fills its parent.
+	 *   - 'fullBleed'  (bool) — break out of parent + span the entire viewport.
+	 *   - 'noDropdown' (bool) — hide the live results dropdown entirely.
 	 * @return string
 	 */
 	public static function render_html( $args = array() ) {
-		$args    = is_array( $args ) ? $args : array();
-		$stretch = ! empty( $args['stretch'] );
-		$wrap_cls = 'zymarg-algolia-wrapper' . ( $stretch ? ' zymarg-stretch' : '' );
+		$args        = is_array( $args ) ? $args : array();
+		$stretch     = ! empty( $args['stretch'] );
+		$full_bleed  = ! empty( $args['fullBleed'] );
+		$no_dropdown = ! empty( $args['noDropdown'] );
+
+		$classes = array( 'zymarg-algolia-wrapper' );
+		if ( $stretch )     $classes[] = 'zymarg-stretch';
+		if ( $full_bleed )  $classes[] = 'zymarg-fullbleed';
+		if ( $no_dropdown ) $classes[] = 'zymarg-no-dropdown';
+		$wrap_cls = implode( ' ', $classes );
 
 		ob_start();
 		?>

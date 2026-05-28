@@ -91,6 +91,25 @@
 	max-width: 100%;
 }
 
+/* Full-bleed modifier — break out of any parent container and span the
+   entire viewport width using the negative-margin / 100vw technique.
+   Works inside Elementor sections / columns regardless of the section's
+   content-width setting (Default / Boxed / Full Width). */
+.zymarg-algolia-wrapper.zymarg-fullbleed {
+	width: 100vw;
+	max-width: 100vw !important;
+	margin-left: calc(50% - 50vw);
+	margin-right: calc(50% - 50vw);
+}
+
+/* No-dropdown modifier — the "Show results dropdown" toggle in the
+   Elementor / Gutenberg widget is OFF. Hide the dropdown entirely so
+   the bar behaves like a plain WP search form (type, hit Enter). */
+.zymarg-algolia-wrapper.zymarg-no-dropdown .zymarg-algolia-dropdown,
+.zymarg-no-dropdown .zymarg-algolia-dropdown {
+	display: none !important;
+}
+
 /* The block wrapper from Gutenberg should not collapse on flex parents. */
 .zymarg-algolia-block-wrap {
 	width: 100%;

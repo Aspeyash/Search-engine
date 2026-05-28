@@ -68,6 +68,8 @@
 			align:              { type: 'string' },
 
 			stretch:            { type: 'boolean', default: false },
+			fullBleed:          { type: 'boolean', default: false },
+			showDropdown:       { type: 'boolean', default: true },
 			maxWidth:           { type: 'number' },
 			inputHeight:        { type: 'number' },
 			fontSize:           { type: 'number' },
@@ -124,8 +126,20 @@
 						onChange: function (val) { setAtts({ placeholder: val }); }
 					}) : null,
 					ToggleControl ? el(ToggleControl, {
+						label:    __('Show results dropdown', 'zymarg-algolia'),
+						help:     __('When OFF the live results dropdown is hidden — bar behaves like a plain WP search form (type, then press Enter).', 'zymarg-algolia'),
+						checked:  atts.showDropdown !== false,
+						onChange: function (v) { setAtts({ showDropdown: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
+						label:    __('Full screen width (break out of parent)', 'zymarg-algolia'),
+						help:     __('Spans the entire viewport regardless of parent container — use this when the parent column has a max-width that\'s too narrow.', 'zymarg-algolia'),
+						checked:  !!atts.fullBleed,
+						onChange: function (v) { setAtts({ fullBleed: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
 						label:    __('Stretch to full container width', 'zymarg-algolia'),
-						help:     __('When ON, ignores Max width and fills 100% of the container.', 'zymarg-algolia'),
+						help:     __('Fills 100% of the immediate parent. Ignored if "Full screen width" is also ON.', 'zymarg-algolia'),
 						checked:  !!atts.stretch,
 						onChange: function (v) { setAtts({ stretch: !!v }); }
 					}) : null
@@ -134,8 +148,8 @@
 				var layoutPanel = el(
 					PanelBody,
 					{ title: __('Search bar size', 'zymarg-algolia'), initialOpen: false },
-					range(__('Max width (px)',         'zymarg-algolia'), 'maxWidth',     200, 3000, 720, 10,
-						__('Up to 3000px. Ignored when "Stretch to full container width" is ON.', 'zymarg-algolia')),
+					range(__('Max width (px)',         'zymarg-algolia'), 'maxWidth',     200, 5000, 720, 10,
+						__('Up to 5000px. Ignored when "Stretch" or "Full screen width" is ON.', 'zymarg-algolia')),
 					range(__('Bar height (px)',        'zymarg-algolia'), 'inputHeight',   32,  120,  50, 1),
 					range(__('Horizontal padding (px)','zymarg-algolia'), 'paddingX',       0,   60,  14, 1),
 					range(__('Icon size (px)',         'zymarg-algolia'), 'iconSize',       0,   40,  18, 1),

@@ -94,15 +94,42 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
-			'stretch',
+			'show_dropdown',
 			array(
-				'label'        => __( 'Stretch to full container width', 'zymarg-algolia' ),
+				'label'        => __( 'Show results dropdown', 'zymarg-algolia' ),
 				'type'         => \Elementor\Controls_Manager::SWITCHER,
-				'description'  => __( 'When ON, the bar ignores Max width and fills 100% of its container — drop it inside an Elementor section set to Full Width to span the entire page.', 'zymarg-algolia' ),
+				'description'  => __( 'When OFF the live results dropdown is hidden — the bar then behaves like a plain WP search form (type, then press Enter to go to the search results page).', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => 'yes',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'full_bleed',
+			array(
+				'label'        => __( 'Full screen width (break out of parent)', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'Spans the entire viewport regardless of parent container. Use this when the Astra/Elementor section the bar lives in has a max-width that\'s too narrow — e.g. when the Stretch toggle still feels limited because the parent column itself is constrained.', 'zymarg-algolia' ),
 				'label_on'     => __( 'On', 'zymarg-algolia' ),
 				'label_off'    => __( 'Off', 'zymarg-algolia' ),
 				'default'      => '',
 				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'stretch',
+			array(
+				'label'        => __( 'Stretch to full container width', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When ON, the bar ignores Max width and fills 100% of its immediate parent container. Use "Full screen width" above to also break out of the parent.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => '',
+				'return_value' => 'yes',
+				'condition'    => array( 'full_bleed!' => 'yes' ),
 				'selectors'    => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => 'max-width: 100% !important;',
 				),
@@ -113,16 +140,19 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			'max_width',
 			array(
 				'label'       => __( 'Max width', 'zymarg-algolia' ),
-				'description' => __( 'Goes up to 3000px. Ignored if "Stretch to full container width" is ON.', 'zymarg-algolia' ),
+				'description' => __( 'Goes up to 5000px. Ignored if "Stretch" or "Full screen width" is ON.', 'zymarg-algolia' ),
 				'type'        => \Elementor\Controls_Manager::SLIDER,
 				'size_units'  => array( 'px', '%', 'vw' ),
 				'range'       => array(
-					'px' => array( 'min' => 200, 'max' => 3000, 'step' => 10 ),
+					'px' => array( 'min' => 200, 'max' => 5000, 'step' => 10 ),
 					'%'  => array( 'min' => 30,  'max' => 100,  'step' => 1 ),
 					'vw' => array( 'min' => 30,  'max' => 100,  'step' => 1 ),
 				),
 				'default'     => array( 'size' => 720, 'unit' => 'px' ),
-				'condition'   => array( 'stretch!' => 'yes' ),
+				'condition'   => array(
+					'stretch!'    => 'yes',
+					'full_bleed!' => 'yes',
+				),
 				'selectors'   => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-max-width: {{SIZE}}{{UNIT}};',
 				),
@@ -587,7 +617,11 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 	protected function render() {
 		$settings    = $this->get_settings_for_display();
 		$placeholder = isset( $settings['placeholder'] ) ? trim( (string) $settings['placeholder'] ) : '';
-		$stretch     = ! empty( $settings['stretch'] ) && 'yes' === $settings['stretch'];
+		$stretch     = ! empty( $settings['stretch'] )    && 'yes' === $settings['stretch'];
+		$full_bleed  = ! empty( $settings['full_bleed'] ) && 'yes' === $settings['full_bleed'];
+		// Default = ON. So treat anything other than explicit empty string as "show".
+		$show_dd     = ! isset( $settings['show_dropdown'] ) || 'yes' === $settings['show_dropdown'];
+		$no_dropdown = ! $show_dd;
 
 		if ( '' !== $placeholder ) {
 			add_filter(
@@ -598,6 +632,10 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			);
 		}
 
-		echo Zymarg_Algolia_Frontend::render_html( array( 'stretch' => $stretch ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo Zymarg_Algolia_Frontend::render_html( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			'stretch'    => $stretch,
+			'fullBleed'  => $full_bleed,
+			'noDropdown' => $no_dropdown,
+		) );
 	}
 }

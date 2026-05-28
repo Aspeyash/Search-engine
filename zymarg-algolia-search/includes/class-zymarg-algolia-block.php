@@ -68,6 +68,8 @@ class Zymarg_Algolia_Block {
 
 					// Layout.
 					'stretch'            => array( 'type' => 'boolean', 'default' => false ),
+					'fullBleed'          => array( 'type' => 'boolean', 'default' => false ),
+					'showDropdown'       => array( 'type' => 'boolean', 'default' => true ),
 					'maxWidth'           => array( 'type' => 'number' ),
 					'inputHeight'        => array( 'type' => 'number' ),
 					'fontSize'           => array( 'type' => 'number' ),
@@ -117,7 +119,10 @@ class Zymarg_Algolia_Block {
 			);
 		}
 
-		$stretch = ! empty( $attrs['stretch'] );
+		$stretch     = ! empty( $attrs['stretch'] );
+		$full_bleed  = ! empty( $attrs['fullBleed'] );
+		// showDropdown defaults to true; only treat explicit false as "off".
+		$no_dropdown = isset( $attrs['showDropdown'] ) && false === $attrs['showDropdown'];
 
 		// Build inline `style="..."` of CSS variables (cascade to inner wrapper).
 		$vars = array();
@@ -182,7 +187,11 @@ class Zymarg_Algolia_Block {
 		$align_class = $align ? ' align' . $align : '';
 
 		return '<div class="zymarg-algolia-block-wrap' . esc_attr( $align_class ) . '"' . $style_attr . '>' .
-			Zymarg_Algolia_Frontend::render_html( array( 'stretch' => $stretch ) ) .
+			Zymarg_Algolia_Frontend::render_html( array(
+				'stretch'    => $stretch,
+				'fullBleed'  => $full_bleed,
+				'noDropdown' => $no_dropdown,
+			) ) .
 			'</div>';
 	}
 
@@ -276,6 +285,10 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		$title       = ! empty( $instance['title'] ) ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
 		$placeholder = ! empty( $instance['placeholder'] ) ? $instance['placeholder'] : '';
 		$stretch     = ! empty( $instance['stretch'] );
+		$full_bleed  = ! empty( $instance['full_bleed'] );
+		// Default = ON; only treat explicit "0" as off.
+		$show_dd     = ! isset( $instance['show_dropdown'] ) || ! empty( $instance['show_dropdown'] );
+		$no_dropdown = ! $show_dd;
 
 		if ( $placeholder ) {
 			$ph = (string) $placeholder;
@@ -291,7 +304,11 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		if ( $title ) {
 			echo $args['before_title'] . esc_html( $title ) . $args['after_title']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
-		echo Zymarg_Algolia_Frontend::render_html( array( 'stretch' => $stretch ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo Zymarg_Algolia_Frontend::render_html( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			'stretch'    => $stretch,
+			'fullBleed'  => $full_bleed,
+			'noDropdown' => $no_dropdown,
+		) );
 		echo $args['after_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -299,6 +316,8 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		$title       = isset( $instance['title'] ) ? (string) $instance['title'] : '';
 		$placeholder = isset( $instance['placeholder'] ) ? (string) $instance['placeholder'] : '';
 		$stretch     = ! empty( $instance['stretch'] );
+		$full_bleed  = ! empty( $instance['full_bleed'] );
+		$show_dd     = ! isset( $instance['show_dropdown'] ) || ! empty( $instance['show_dropdown'] );
 		?>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>">
@@ -323,6 +342,17 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		</p>
 		<p>
 			<input
+				id="<?php echo esc_attr( $this->get_field_id( 'show_dropdown' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'show_dropdown' ) ); ?>"
+				type="checkbox"
+				value="1"
+				<?php checked( $show_dd, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'show_dropdown' ) ); ?>">
+				<?php esc_html_e( 'Show results dropdown', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
+		<p>
+			<input
 				id="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'stretch' ) ); ?>"
 				type="checkbox"
@@ -332,14 +362,27 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 				<?php esc_html_e( 'Stretch to full container width', 'zymarg-algolia' ); ?>
 			</label>
 		</p>
+		<p>
+			<input
+				id="<?php echo esc_attr( $this->get_field_id( 'full_bleed' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'full_bleed' ) ); ?>"
+				type="checkbox"
+				value="1"
+				<?php checked( $full_bleed, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'full_bleed' ) ); ?>">
+				<?php esc_html_e( 'Full screen width (break out of parent)', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
 		<?php
 	}
 
 	public function update( $new_instance, $old_instance ) {
 		return array(
-			'title'       => isset( $new_instance['title'] ) ? sanitize_text_field( $new_instance['title'] ) : '',
-			'placeholder' => isset( $new_instance['placeholder'] ) ? sanitize_text_field( $new_instance['placeholder'] ) : '',
-			'stretch'     => ! empty( $new_instance['stretch'] ) ? 1 : 0,
+			'title'         => isset( $new_instance['title'] ) ? sanitize_text_field( $new_instance['title'] ) : '',
+			'placeholder'   => isset( $new_instance['placeholder'] ) ? sanitize_text_field( $new_instance['placeholder'] ) : '',
+			'stretch'       => ! empty( $new_instance['stretch'] ) ? 1 : 0,
+			'full_bleed'    => ! empty( $new_instance['full_bleed'] ) ? 1 : 0,
+			'show_dropdown' => ! empty( $new_instance['show_dropdown'] ) ? 1 : 0,
 		);
 	}
 }

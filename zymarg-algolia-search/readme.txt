@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,12 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.8 =
+* **New:** "Full screen width (break out of parent)" toggle in Elementor + Gutenberg block + classic widget. Spans the entire viewport regardless of how narrow the parent Elementor column / Astra section is, using the standard CSS breakout technique (`margin-left: calc(50% - 50vw); width: 100vw`). Use this when the Stretch toggle still feels limited because the parent container itself is constrained.
+* **New:** "Show results dropdown" toggle. Turn it OFF and the live dropdown is completely hidden — the search bar then behaves like a plain WP search form (type, then press Enter to go to the search results page).
+* **Improvement:** Max-width slider raised from 3000 px to 5000 px in both Elementor and Gutenberg.
+* **No changes** to the instant search JS this round (per request).
 
 = 1.0.7 =
 * **New:** "Stretch to full container width" toggle in both Elementor widget and Gutenberg block — drops the max-width cap so the bar fills 100% of its container regardless of the slider.
