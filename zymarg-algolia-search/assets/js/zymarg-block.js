@@ -72,6 +72,9 @@
 			showEmpty:          { type: 'boolean', default: true },
 			showClear:          { type: 'boolean', default: true },
 			clearLeft:          { type: 'boolean', default: false },
+			showProducts:       { type: 'boolean', default: true },
+			showCategories:     { type: 'boolean', default: true },
+			showVendors:        { type: 'boolean', default: false },
 			maxWidth:           { type: 'number' },
 			inputHeight:        { type: 'number' },
 			fontSize:           { type: 'number' },
@@ -80,7 +83,6 @@
 			iconSize:           { type: 'number' },
 
 			inputPaddingY:      { type: 'number' },
-			lineHeight:         { type: 'number' },
 			inputMinWidth:      { type: 'number' },
 
 			dropdownMaxHeight:  { type: 'number' },
@@ -137,6 +139,24 @@
 						onChange: function (val) { setAtts({ placeholder: val }); }
 					}) : null,
 					ToggleControl ? el(ToggleControl, {
+						label:    __('Show Products section', 'zymarg-algolia'),
+						help:     __('Renders the Products section in the dropdown. Render order: Products → Categories → Vendors.', 'zymarg-algolia'),
+						checked:  atts.showProducts !== false,
+						onChange: function (v) { setAtts({ showProducts: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
+						label:    __('Show Categories section', 'zymarg-algolia'),
+						help:     __('Renders the Categories section after Products.', 'zymarg-algolia'),
+						checked:  atts.showCategories !== false,
+						onChange: function (v) { setAtts({ showCategories: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
+						label:    __('Show Vendors section', 'zymarg-algolia'),
+						help:     __('Default OFF. When OFF, the plugin skips the Algolia call to zymarg_vendors entirely.', 'zymarg-algolia'),
+						checked:  !!atts.showVendors,
+						onChange: function (v) { setAtts({ showVendors: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
 						label:    __('Show results dropdown', 'zymarg-algolia'),
 						help:     __('When OFF the live results dropdown is hidden — bar behaves like a plain WP search form (type, then press Enter).', 'zymarg-algolia'),
 						checked:  atts.showDropdown !== false,
@@ -185,8 +205,6 @@
 					range(__('Text size (px)',          'zymarg-algolia'), 'fontSize',       11,  40, 15, 1),
 					range(__('Vertical text padding (px)','zymarg-algolia'), 'inputPaddingY', 0,  40,  0, 1,
 						__('Extra space above and below the typed text inside the input.', 'zymarg-algolia')),
-					range(__('Line height (×10)',       'zymarg-algolia'), 'lineHeight',     10,  30, 14, 1,
-						__('Multiplied by 0.1, so 14 = 1.4. Affects the height of the typed text inside the input.', 'zymarg-algolia')),
 					range(__('Input min-width (px)',    'zymarg-algolia'), 'inputMinWidth',   0,1200,  0, 10,
 						__('Force the typing area to a minimum width.', 'zymarg-algolia'))
 				);
@@ -247,12 +265,8 @@
 				);
 			}
 
-			// The "Line height (×10)" trick stores 14 instead of 1.4 because
-			// RangeControl integers are friendlier. Convert before render.
-			var renderAtts = Object.assign({}, atts);
-			if (typeof atts.lineHeight === 'number') {
-				renderAtts.lineHeight = atts.lineHeight / 10;
-			}
+			// Pass attributes through to ServerSideRender as-is.
+			var renderAtts = atts;
 
 			var preview;
 			if (ServerSideRender) {

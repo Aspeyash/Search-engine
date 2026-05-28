@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.10
+Stable tag: 1.0.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,13 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.11 =
+* **New:** Section-level toggles in Elementor + Gutenberg block + classic widget. Three independent on/off switches: "Show Products section", "Show Categories section", "Show Vendors section". Defaults: Products + Categories ON, Vendors OFF.
+* **Changed:** Render order in the dropdown is now **Products → Categories → Vendors** (was Categories → Products → Vendors). Products show first because that's what users are looking for.
+* **Improvement:** When a section toggle is OFF, the plugin **skips the Algolia API call** for that index entirely. Reduces query volume by ~33% and prevents the "Index does not exist" error when an index hasn't been auto-created yet (e.g. no Dokan vendors yet → no `zymarg_vendors` index → previously broke instant search; now silently skipped).
+* **Removed:** "Text line height" control in Elementor + "Line height (×10)" range in Gutenberg block. `<input>` elements ignore line-height visibly when they have a fixed bar height, so the slider had no visible effect — confusing. Use Bar height + Vertical text padding instead for size control.
+* **Backward compatible:** existing widget instances without these new settings inherit the defaults (Products + Categories ON, Vendors OFF). Existing instances with `lineHeight` set silently ignore it.
 
 = 1.0.10 =
 * **Removed:** "Full screen width (break out of parent)" toggle. The control + CSS class + render handling are gone everywhere (Elementor, Gutenberg, classic widget).

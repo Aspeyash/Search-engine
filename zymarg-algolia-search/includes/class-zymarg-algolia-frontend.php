@@ -106,11 +106,19 @@ class Zymarg_Algolia_Frontend {
 	 * classic widget and the Elementor widget.
 	 *
 	 * @param array $args Optional. Supported keys:
-	 *   - 'stretch'    (bool) — drop max-width so the bar fills its parent.
-	 *   - 'noDropdown' (bool) — hide the live results dropdown entirely.
-	 *   - 'noEmpty'    (bool) — hide the "Couldn't find..." empty-state CTA.
-	 *   - 'noClear'    (bool) — hide the X (clear) button entirely.
-	 *   - 'clearLeft'  (bool) — place the X on the LEFT side of the input.
+	 *   - 'stretch'        (bool) — drop max-width so the bar fills its parent.
+	 *   - 'noDropdown'     (bool) — hide the live results dropdown entirely.
+	 *   - 'noEmpty'        (bool) — hide the "Couldn't find..." empty-state CTA.
+	 *   - 'noClear'        (bool) — hide the X (clear) button entirely.
+	 *   - 'clearLeft'      (bool) — place the X on the LEFT side of the input.
+	 *   - 'showProducts'   (bool, default true)  — render the Products section.
+	 *   - 'showCategories' (bool, default true)  — render the Categories section.
+	 *   - 'showVendors'    (bool, default false) — render the Vendors section.
+	 *
+	 * Section visibility is passed to the JS via data attributes on the
+	 * wrapper. The JS then skips the API call for any hidden section and
+	 * renders the rest in the order: Products → Categories → Vendors.
+	 *
 	 * @return string
 	 */
 	public static function render_html( $args = array() ) {
@@ -121,6 +129,11 @@ class Zymarg_Algolia_Frontend {
 		$no_clear    = ! empty( $args['noClear'] );
 		$clear_left  = ! empty( $args['clearLeft'] );
 
+		// Section visibility — defaults: products + categories ON, vendors OFF.
+		$show_products   = ! array_key_exists( 'showProducts', $args )   || ! empty( $args['showProducts'] );
+		$show_categories = ! array_key_exists( 'showCategories', $args ) || ! empty( $args['showCategories'] );
+		$show_vendors    = ! empty( $args['showVendors'] );
+
 		$classes = array( 'zymarg-algolia-wrapper' );
 		if ( $stretch )     $classes[] = 'zymarg-stretch';
 		if ( $no_dropdown ) $classes[] = 'zymarg-no-dropdown';
@@ -129,9 +142,14 @@ class Zymarg_Algolia_Frontend {
 		if ( $clear_left )  $classes[] = 'zymarg-clear-left';
 		$wrap_cls = implode( ' ', $classes );
 
+		// Section visibility flags as data attributes; JS reads these per wrapper.
+		$data_attrs = ' data-show-products="' . ( $show_products ? '1' : '0' ) . '"' .
+			' data-show-categories="' . ( $show_categories ? '1' : '0' ) . '"' .
+			' data-show-vendors="' . ( $show_vendors ? '1' : '0' ) . '"';
+
 		ob_start();
 		?>
-		<div class="<?php echo esc_attr( $wrap_cls ); ?>" data-zymarg-search>
+		<div class="<?php echo esc_attr( $wrap_cls ); ?>" data-zymarg-search<?php echo $data_attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			<div class="zymarg-algolia-orb zymarg-algolia-orb-1" aria-hidden="true"></div>
 			<div class="zymarg-algolia-orb zymarg-algolia-orb-2" aria-hidden="true"></div>
 

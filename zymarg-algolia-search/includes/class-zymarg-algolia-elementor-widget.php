@@ -107,6 +107,45 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'show_products_section',
+			array(
+				'label'        => __( 'Show Products section', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When OFF the Products section is removed from the dropdown.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => 'yes',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'show_categories_section',
+			array(
+				'label'        => __( 'Show Categories section', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When OFF the Categories section is removed from the dropdown. Render order is Products → Categories.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => 'yes',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'show_vendors_section',
+			array(
+				'label'        => __( 'Show Vendors section', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When OFF the Vendors section is hidden AND the plugin skips the Algolia call to zymarg_vendors entirely. Default OFF.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => '',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_control(
 			'stretch',
 			array(
 				'label'        => __( 'Stretch to full container width', 'zymarg-algolia' ),
@@ -309,13 +348,9 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			'input_line_height',
 			array(
 				'label'      => __( 'Text line height', 'zymarg-algolia' ),
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( '' ),
-				'range'      => array( '' => array( 'min' => 1, 'max' => 3, 'step' => 0.05 ) ),
-				'default'    => array( 'size' => 1.4, 'unit' => '' ),
-				'selectors'  => array(
-					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-input-line-height: {{SIZE}};',
-				),
+				'type'       => \Elementor\Controls_Manager::HIDDEN,
+				'default'    => '',
+				'description' => __( 'Removed in 1.0.11 — input elements ignore line-height when they have a fixed bar height. Use Bar height + Vertical text padding instead.', 'zymarg-algolia' ),
 			)
 		);
 
@@ -838,6 +873,11 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$no_clear    = ! $show_clear;
 		$clear_left  = ! empty( $settings['clear_position'] ) && 'left' === $settings['clear_position'];
 
+		// Section toggles (default: products + categories ON, vendors OFF).
+		$show_products   = ! isset( $settings['show_products_section'] )   || 'yes' === $settings['show_products_section'];
+		$show_categories = ! isset( $settings['show_categories_section'] ) || 'yes' === $settings['show_categories_section'];
+		$show_vendors    = isset( $settings['show_vendors_section'] ) && 'yes' === $settings['show_vendors_section'];
+
 		if ( '' !== $placeholder ) {
 			add_filter(
 				'zymarg_algolia_placeholder',
@@ -848,11 +888,14 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		}
 
 		echo Zymarg_Algolia_Frontend::render_html( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			'stretch'    => $stretch,
-			'noDropdown' => $no_dropdown,
-			'noEmpty'    => $no_empty,
-			'noClear'    => $no_clear,
-			'clearLeft'  => $clear_left,
+			'stretch'        => $stretch,
+			'noDropdown'     => $no_dropdown,
+			'noEmpty'        => $no_empty,
+			'noClear'        => $no_clear,
+			'clearLeft'      => $clear_left,
+			'showProducts'   => $show_products,
+			'showCategories' => $show_categories,
+			'showVendors'    => $show_vendors,
 		) );
 	}
 }

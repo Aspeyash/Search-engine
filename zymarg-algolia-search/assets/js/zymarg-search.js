@@ -300,6 +300,12 @@
 			return;
 		}
 
+		// Read per-wrapper section visibility flags from data attributes set
+		// by the renderer. Defaults: products + categories ON, vendors OFF.
+		var showProducts   = wrapper.getAttribute('data-show-products')   !== '0';
+		var showCategories = wrapper.getAttribute('data-show-categories') !== '0';
+		var showVendors    = wrapper.getAttribute('data-show-vendors')    === '1';
+
 		// Empty-state CTA from settings.
 		var emptyText = emptyBox.querySelector('.zymarg-algolia-empty-text');
 		var emptyBtn  = emptyBox.querySelector('.zymarg-algolia-empty-btn');
@@ -335,27 +341,11 @@
 			openDropdown();
 		};
 
-		var renderResults = function (productHits, vendorHits, catHits, query) {
+		var renderResults = function (productHits, catHits, vendorHits, query) {
 			emptyBox.hidden = true;
 			var html = '';
 
-			if (catHits && catHits.length) {
-				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.categories) + '</h4>';
-				catHits.slice(0, 3).forEach(function (h) {
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
-						'<span class="zymarg-algolia-cat-img">' +
-							(h.image ? '<img src="' + escapeHtml(h.image) + '" alt="" loading="lazy" />' : '') +
-						'</span>' +
-						'<span class="zymarg-algolia-hit-body">' +
-							'<span class="zymarg-algolia-hit-title">' + getHighlight(h, 'name') + '</span>' +
-							'<span class="zymarg-algolia-hit-meta">' + (h.count || 0) + ' products</span>' +
-						'</span>' +
-					'</a>';
-				});
-				html += '</div>';
-			}
-
+			// Products first — what users are mostly looking for.
 			if (productHits && productHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.products) + '</h4>';
@@ -382,6 +372,25 @@
 				html += '</div>';
 			}
 
+			// Categories second.
+			if (catHits && catHits.length) {
+				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
+					escapeHtml(cfg.i18n.categories) + '</h4>';
+				catHits.slice(0, 3).forEach(function (h) {
+					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
+						'<span class="zymarg-algolia-cat-img">' +
+							(h.image ? '<img src="' + escapeHtml(h.image) + '" alt="" loading="lazy" />' : '') +
+						'</span>' +
+						'<span class="zymarg-algolia-hit-body">' +
+							'<span class="zymarg-algolia-hit-title">' + getHighlight(h, 'name') + '</span>' +
+							'<span class="zymarg-algolia-hit-meta">' + (h.count || 0) + ' products</span>' +
+						'</span>' +
+					'</a>';
+				});
+				html += '</div>';
+			}
+
+			// Vendors last (default OFF — only renders when explicitly enabled).
 			if (vendorHits && vendorHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.vendors) + '</h4>';
@@ -404,6 +413,7 @@
 				html += '</div>';
 			}
 
+			// "See all" link -> standard WP search page (?s=) so SEO crawl works.
 			if (query) {
 				var url = (form && form.getAttribute('action')) || (window.location.origin + '/');
 				url += (url.indexOf('?') >= 0 ? '&' : '?') +
@@ -425,30 +435,52 @@
 			showLoading();
 			openDropdown();
 
-			var requests = [
-				{ indexName: cfg.indexProducts, params: { query: query, hitsPerPage: 6 } },
-				{ indexName: cfg.indexVendors,  params: { query: query, hitsPerPage: 4 } },
-				{ indexName: cfg.indexCats,     params: { query: query, hitsPerPage: 3 } }
-			];
+			// Build the requests array based on which sections this widget
+			// shows. Hidden sections aren't queried at all — saves Algolia
+			// API calls and avoids errors when an index doesn't exist (e.g.
+			// no Dokan vendors yet means no zymarg_vendors index).
+			var requests = [];
+			var resultTypes = [];
+			if (showProducts) {
+				requests.push({ indexName: cfg.indexProducts, params: { query: query, hitsPerPage: 6 } });
+				resultTypes.push('products');
+			}
+			if (showCategories) {
+				requests.push({ indexName: cfg.indexCats, params: { query: query, hitsPerPage: 3 } });
+				resultTypes.push('categories');
+			}
+			if (showVendors) {
+				requests.push({ indexName: cfg.indexVendors, params: { query: query, hitsPerPage: 4 } });
+				resultTypes.push('vendors');
+			}
+
+			// Edge case: every section toggled off — just close the dropdown.
+			if (!requests.length) {
+				hideLoading();
+				closeDropdown();
+				return;
+			}
 
 			var reqId = ++lastReqId;
 
 			client.search(requests).then(function (res) {
 				if (reqId !== lastReqId) return;
 				hideLoading();
-				var p = (res && res.results && res.results[0]) || {};
-				var v = (res && res.results && res.results[1]) || {};
-				var c = (res && res.results && res.results[2]) || {};
-				var pHits = p.hits || [];
-				var vHits = v.hits || [];
-				var cHits = c.hits || [];
-				diag.lastResultCounts = { products: pHits.length, vendors: vHits.length, categories: cHits.length };
+				var hits = { products: [], categories: [], vendors: [] };
+				(((res && res.results) || [])).forEach(function (r, i) {
+					hits[resultTypes[i]] = r.hits || [];
+				});
+				diag.lastResultCounts = {
+					products:   hits.products.length,
+					categories: hits.categories.length,
+					vendors:    hits.vendors.length
+				};
 
-				if (!pHits.length && !vHits.length && !cHits.length) {
+				if (!hits.products.length && !hits.categories.length && !hits.vendors.length) {
 					renderEmpty();
 					return;
 				}
-				renderResults(pHits, vHits, cHits, query);
+				renderResults(hits.products, hits.categories, hits.vendors, query);
 			}).catch(function (err) {
 				if (reqId !== lastReqId) return;
 				hideLoading();

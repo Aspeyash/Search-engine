@@ -72,6 +72,10 @@ class Zymarg_Algolia_Block {
 					'showEmpty'          => array( 'type' => 'boolean', 'default' => true ),
 					'showClear'          => array( 'type' => 'boolean', 'default' => true ),
 					'clearLeft'          => array( 'type' => 'boolean', 'default' => false ),
+					// Sections (default: products + categories ON, vendors OFF).
+					'showProducts'       => array( 'type' => 'boolean', 'default' => true ),
+					'showCategories'     => array( 'type' => 'boolean', 'default' => true ),
+					'showVendors'        => array( 'type' => 'boolean', 'default' => false ),
 					'maxWidth'           => array( 'type' => 'number' ),
 					'inputHeight'        => array( 'type' => 'number' ),
 					'fontSize'           => array( 'type' => 'number' ),
@@ -81,7 +85,6 @@ class Zymarg_Algolia_Block {
 
 					// Input field internals.
 					'inputPaddingY'      => array( 'type' => 'number' ),
-					'lineHeight'         => array( 'type' => 'number' ),
 					'inputMinWidth'      => array( 'type' => 'number' ),
 
 					// Dropdown.
@@ -141,6 +144,11 @@ class Zymarg_Algolia_Block {
 		$no_clear    = isset( $attrs['showClear'] ) && false === $attrs['showClear'];
 		$clear_left  = ! empty( $attrs['clearLeft'] );
 
+		// Section toggles. Defaults: products + categories ON, vendors OFF.
+		$show_products   = ! array_key_exists( 'showProducts', $attrs )   || false !== $attrs['showProducts'];
+		$show_categories = ! array_key_exists( 'showCategories', $attrs ) || false !== $attrs['showCategories'];
+		$show_vendors    = ! empty( $attrs['showVendors'] );
+
 		// Build inline `style="..."` of CSS variables (cascade to inner wrapper).
 		$vars = array();
 
@@ -170,10 +178,8 @@ class Zymarg_Algolia_Block {
 			}
 		}
 
-		// lineHeight is unitless.
-		if ( isset( $attrs['lineHeight'] ) && is_numeric( $attrs['lineHeight'] ) ) {
-			$vars['--zymarg-input-line-height'] = (string) floatval( $attrs['lineHeight'] );
-		}
+		// lineHeight attribute removed in 1.0.11 (input elements ignore
+		// line-height visibly when bar height is fixed). Skip silently.
 
 		$color_map = array(
 			'textColor'        => '--zymarg-text',
@@ -212,11 +218,14 @@ class Zymarg_Algolia_Block {
 
 		return '<div class="zymarg-algolia-block-wrap' . esc_attr( $align_class ) . '"' . $style_attr . '>' .
 			Zymarg_Algolia_Frontend::render_html( array(
-				'stretch'    => $stretch,
-				'noDropdown' => $no_dropdown,
-				'noEmpty'    => $no_empty,
-				'noClear'    => $no_clear,
-				'clearLeft'  => $clear_left,
+				'stretch'        => $stretch,
+				'noDropdown'     => $no_dropdown,
+				'noEmpty'        => $no_empty,
+				'noClear'        => $no_clear,
+				'clearLeft'      => $clear_left,
+				'showProducts'   => $show_products,
+				'showCategories' => $show_categories,
+				'showVendors'    => $show_vendors,
 			) ) .
 			'</div>';
 	}
@@ -320,6 +329,11 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		$no_clear    = ! $show_clear;
 		$clear_left  = ! empty( $instance['clear_left'] );
 
+		// Sections: products + categories ON by default, vendors OFF.
+		$show_products   = ! isset( $instance['show_products'] )   || ! empty( $instance['show_products'] );
+		$show_categories = ! isset( $instance['show_categories'] ) || ! empty( $instance['show_categories'] );
+		$show_vendors    = ! empty( $instance['show_vendors'] );
+
 		if ( $placeholder ) {
 			$ph = (string) $placeholder;
 			add_filter(
@@ -335,23 +349,29 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 			echo $args['before_title'] . esc_html( $title ) . $args['after_title']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo Zymarg_Algolia_Frontend::render_html( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			'stretch'    => $stretch,
-			'noDropdown' => $no_dropdown,
-			'noEmpty'    => $no_empty,
-			'noClear'    => $no_clear,
-			'clearLeft'  => $clear_left,
+			'stretch'        => $stretch,
+			'noDropdown'     => $no_dropdown,
+			'noEmpty'        => $no_empty,
+			'noClear'        => $no_clear,
+			'clearLeft'      => $clear_left,
+			'showProducts'   => $show_products,
+			'showCategories' => $show_categories,
+			'showVendors'    => $show_vendors,
 		) );
 		echo $args['after_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	public function form( $instance ) {
-		$title       = isset( $instance['title'] ) ? (string) $instance['title'] : '';
-		$placeholder = isset( $instance['placeholder'] ) ? (string) $instance['placeholder'] : '';
-		$stretch     = ! empty( $instance['stretch'] );
-		$show_dd     = ! isset( $instance['show_dropdown'] ) || ! empty( $instance['show_dropdown'] );
-		$show_empty  = ! isset( $instance['show_empty'] ) || ! empty( $instance['show_empty'] );
-		$show_clear  = ! isset( $instance['show_clear'] ) || ! empty( $instance['show_clear'] );
-		$clear_left  = ! empty( $instance['clear_left'] );
+		$title           = isset( $instance['title'] ) ? (string) $instance['title'] : '';
+		$placeholder     = isset( $instance['placeholder'] ) ? (string) $instance['placeholder'] : '';
+		$stretch         = ! empty( $instance['stretch'] );
+		$show_dd         = ! isset( $instance['show_dropdown'] ) || ! empty( $instance['show_dropdown'] );
+		$show_empty      = ! isset( $instance['show_empty'] ) || ! empty( $instance['show_empty'] );
+		$show_clear      = ! isset( $instance['show_clear'] ) || ! empty( $instance['show_clear'] );
+		$clear_left      = ! empty( $instance['clear_left'] );
+		$show_products   = ! isset( $instance['show_products'] )   || ! empty( $instance['show_products'] );
+		$show_categories = ! isset( $instance['show_categories'] ) || ! empty( $instance['show_categories'] );
+		$show_vendors    = ! empty( $instance['show_vendors'] );
 		?>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>">
@@ -375,56 +395,65 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 				placeholder="<?php esc_attr_e( 'Search products, vendors, categories…', 'zymarg-algolia' ); ?>" />
 		</p>
 		<p>
-			<input
-				id="<?php echo esc_attr( $this->get_field_id( 'show_dropdown' ) ); ?>"
+			<input id="<?php echo esc_attr( $this->get_field_id( 'show_products' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'show_products' ) ); ?>"
+				type="checkbox" value="1" <?php checked( $show_products, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'show_products' ) ); ?>">
+				<?php esc_html_e( 'Show Products section', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
+		<p>
+			<input id="<?php echo esc_attr( $this->get_field_id( 'show_categories' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'show_categories' ) ); ?>"
+				type="checkbox" value="1" <?php checked( $show_categories, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'show_categories' ) ); ?>">
+				<?php esc_html_e( 'Show Categories section', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
+		<p>
+			<input id="<?php echo esc_attr( $this->get_field_id( 'show_vendors' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'show_vendors' ) ); ?>"
+				type="checkbox" value="1" <?php checked( $show_vendors, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'show_vendors' ) ); ?>">
+				<?php esc_html_e( 'Show Vendors section', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
+		<p>
+			<input id="<?php echo esc_attr( $this->get_field_id( 'show_dropdown' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'show_dropdown' ) ); ?>"
-				type="checkbox"
-				value="1"
-				<?php checked( $show_dd, true ); ?> />
+				type="checkbox" value="1" <?php checked( $show_dd, true ); ?> />
 			<label for="<?php echo esc_attr( $this->get_field_id( 'show_dropdown' ) ); ?>">
 				<?php esc_html_e( 'Show results dropdown', 'zymarg-algolia' ); ?>
 			</label>
 		</p>
 		<p>
-			<input
-				id="<?php echo esc_attr( $this->get_field_id( 'show_empty' ) ); ?>"
+			<input id="<?php echo esc_attr( $this->get_field_id( 'show_empty' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'show_empty' ) ); ?>"
-				type="checkbox"
-				value="1"
-				<?php checked( $show_empty, true ); ?> />
+				type="checkbox" value="1" <?php checked( $show_empty, true ); ?> />
 			<label for="<?php echo esc_attr( $this->get_field_id( 'show_empty' ) ); ?>">
 				<?php esc_html_e( 'Show empty message ("Couldn\'t find...")', 'zymarg-algolia' ); ?>
 			</label>
 		</p>
 		<p>
-			<input
-				id="<?php echo esc_attr( $this->get_field_id( 'show_clear' ) ); ?>"
+			<input id="<?php echo esc_attr( $this->get_field_id( 'show_clear' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'show_clear' ) ); ?>"
-				type="checkbox"
-				value="1"
-				<?php checked( $show_clear, true ); ?> />
+				type="checkbox" value="1" <?php checked( $show_clear, true ); ?> />
 			<label for="<?php echo esc_attr( $this->get_field_id( 'show_clear' ) ); ?>">
 				<?php esc_html_e( 'Show clear (×) button', 'zymarg-algolia' ); ?>
 			</label>
 		</p>
 		<p>
-			<input
-				id="<?php echo esc_attr( $this->get_field_id( 'clear_left' ) ); ?>"
+			<input id="<?php echo esc_attr( $this->get_field_id( 'clear_left' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'clear_left' ) ); ?>"
-				type="checkbox"
-				value="1"
-				<?php checked( $clear_left, true ); ?> />
+				type="checkbox" value="1" <?php checked( $clear_left, true ); ?> />
 			<label for="<?php echo esc_attr( $this->get_field_id( 'clear_left' ) ); ?>">
 				<?php esc_html_e( 'Place X on the left side', 'zymarg-algolia' ); ?>
 			</label>
 		</p>
 		<p>
-			<input
-				id="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>"
+			<input id="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'stretch' ) ); ?>"
-				type="checkbox"
-				value="1"
-				<?php checked( $stretch, true ); ?> />
+				type="checkbox" value="1" <?php checked( $stretch, true ); ?> />
 			<label for="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>">
 				<?php esc_html_e( 'Stretch to full container width', 'zymarg-algolia' ); ?>
 			</label>
@@ -434,13 +463,16 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 
 	public function update( $new_instance, $old_instance ) {
 		return array(
-			'title'         => isset( $new_instance['title'] ) ? sanitize_text_field( $new_instance['title'] ) : '',
-			'placeholder'   => isset( $new_instance['placeholder'] ) ? sanitize_text_field( $new_instance['placeholder'] ) : '',
-			'stretch'       => ! empty( $new_instance['stretch'] ) ? 1 : 0,
-			'show_dropdown' => ! empty( $new_instance['show_dropdown'] ) ? 1 : 0,
-			'show_empty'    => ! empty( $new_instance['show_empty'] ) ? 1 : 0,
-			'show_clear'    => ! empty( $new_instance['show_clear'] ) ? 1 : 0,
-			'clear_left'    => ! empty( $new_instance['clear_left'] ) ? 1 : 0,
+			'title'           => isset( $new_instance['title'] ) ? sanitize_text_field( $new_instance['title'] ) : '',
+			'placeholder'     => isset( $new_instance['placeholder'] ) ? sanitize_text_field( $new_instance['placeholder'] ) : '',
+			'stretch'         => ! empty( $new_instance['stretch'] ) ? 1 : 0,
+			'show_dropdown'   => ! empty( $new_instance['show_dropdown'] ) ? 1 : 0,
+			'show_empty'      => ! empty( $new_instance['show_empty'] ) ? 1 : 0,
+			'show_clear'      => ! empty( $new_instance['show_clear'] ) ? 1 : 0,
+			'clear_left'      => ! empty( $new_instance['clear_left'] ) ? 1 : 0,
+			'show_products'   => ! empty( $new_instance['show_products'] ) ? 1 : 0,
+			'show_categories' => ! empty( $new_instance['show_categories'] ) ? 1 : 0,
+			'show_vendors'    => ! empty( $new_instance['show_vendors'] ) ? 1 : 0,
 		);
 	}
 }
