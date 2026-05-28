@@ -1,6 +1,10 @@
 <?php
 /**
- * Frontend: register/enqueue Algolia search-lite client + render search bar HTML.
+ * Frontend: register/enqueue search assets + render search bar HTML.
+ *
+ * v1.0.6: NO external library. The search script talks to Algolia's REST
+ * API directly via window.fetch(), so jsDelivr / unpkg outages, ad-blockers
+ * and strict CSP no longer break the search bar.
  *
  * Assets are registered on `init` so the block editor (Gutenberg) and the
  * Elementor editor preview can enqueue them too — not only the public site.
@@ -37,7 +41,7 @@ class Zymarg_Algolia_Frontend {
 	}
 
 	/**
-	 * Register the Algolia search-lite client + our JS / CSS.
+	 * Register the search script + style.
 	 *
 	 * Idempotent — safe to call multiple times.
 	 */
@@ -46,19 +50,11 @@ class Zymarg_Algolia_Frontend {
 			return;
 		}
 
-		// Algolia search-lite client (UMD). This is the ONLY library we need.
-		wp_register_script(
-			'algoliasearch',
-			'https://cdn.jsdelivr.net/npm/algoliasearch@4.23.3/dist/algoliasearch-lite.umd.js',
-			array(),
-			'4.23.3',
-			true
-		);
-
+		// No external library — fully self-contained search bar.
 		wp_register_script(
 			self::SCRIPT_HANDLE,
 			ZYMARG_ALGOLIA_URL . 'assets/js/zymarg-search.js',
-			array( 'algoliasearch' ),
+			array(),
 			ZYMARG_ALGOLIA_VERSION,
 			true
 		);

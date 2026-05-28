@@ -7,8 +7,10 @@
  *   - Legacy widget areas (Appearance -> Widgets, Astra header widget zones).
  *   - The Elementor panel (under a "ZYMARG" category) — when Elementor is active.
  *
- * No more typing or remembering [zymarg_algolia_search]. The shortcode still
- * works for backwards compatibility but is no longer the recommended path.
+ * v1.0.6: the Gutenberg block now renders inline CSS variables on the
+ * wrapper from block attributes (max width, input height, font size,
+ * dropdown max height, colors, border radius), so users can fully
+ * customize the search bar without writing CSS.
  *
  * @package ZymargAlgolia
  */
@@ -76,13 +78,29 @@ class Zymarg_Algolia_Block {
 				'editor_script'   => 'zymarg-algolia-block',
 				'render_callback' => array( $this, 'render_block' ),
 				'attributes'      => array(
-					'placeholder' => array(
-						'type'    => 'string',
-						'default' => '',
-					),
-					'align'       => array(
-						'type' => 'string',
-					),
+					'placeholder'        => array( 'type' => 'string', 'default' => '' ),
+					'align'              => array( 'type' => 'string' ),
+
+					// Layout.
+					'maxWidth'           => array( 'type' => 'number' ),
+					'inputHeight'        => array( 'type' => 'number' ),
+					'fontSize'           => array( 'type' => 'number' ),
+					'borderRadius'       => array( 'type' => 'number' ),
+					'paddingX'           => array( 'type' => 'number' ),
+					'iconSize'           => array( 'type' => 'number' ),
+
+					// Dropdown.
+					'dropdownMaxHeight'  => array( 'type' => 'number' ),
+					'dropdownRadius'     => array( 'type' => 'number' ),
+					'dropdownOffset'     => array( 'type' => 'number' ),
+
+					// Colors.
+					'textColor'          => array( 'type' => 'string' ),
+					'placeholderColor'   => array( 'type' => 'string' ),
+					'bgColor'            => array( 'type' => 'string' ),
+					'borderColor'        => array( 'type' => 'string' ),
+					'accentColor'        => array( 'type' => 'string' ),
+					'dropdownBg'         => array( 'type' => 'string' ),
 				),
 				'supports'        => array(
 					'align' => array( 'wide', 'full' ),
@@ -93,8 +111,7 @@ class Zymarg_Algolia_Block {
 	}
 
 	/**
-	 * Server-side render for the Gutenberg block. Used both on the
-	 * frontend and inside the editor's ServerSideRender preview.
+	 * Server-side render for the Gutenberg block.
 	 *
 	 * @param array $attrs Block attributes.
 	 * @return string
@@ -112,19 +129,97 @@ class Zymarg_Algolia_Block {
 			);
 		}
 
+		// Build the inline `style="..."` with CSS variables — these cascade
+		// from the wrap div down to .zymarg-algolia-wrapper inside it.
+		$vars = array();
+
+		$num_map = array(
+			'maxWidth'          => '--zymarg-max-width',
+			'inputHeight'       => '--zymarg-input-height',
+			'fontSize'          => '--zymarg-font-size',
+			'borderRadius'      => '--zymarg-radius',
+			'paddingX'          => '--zymarg-padding-x',
+			'iconSize'          => '--zymarg-icon-size',
+			'dropdownMaxHeight' => '--zymarg-dropdown-max-height',
+			'dropdownRadius'    => '--zymarg-dropdown-radius',
+			'dropdownOffset'    => '--zymarg-dropdown-offset',
+		);
+		foreach ( $num_map as $key => $css_var ) {
+			if ( isset( $attrs[ $key ] ) && is_numeric( $attrs[ $key ] ) ) {
+				$vars[ $css_var ] = intval( $attrs[ $key ] ) . 'px';
+			}
+		}
+
+		$color_map = array(
+			'textColor'        => '--zymarg-text',
+			'placeholderColor' => '--zymarg-placeholder',
+			'bgColor'          => '--zymarg-bg',
+			'borderColor'      => '--zymarg-border',
+			'dropdownBg'       => '--zymarg-dropdown-bg',
+		);
+		foreach ( $color_map as $key => $css_var ) {
+			if ( ! empty( $attrs[ $key ] ) ) {
+				$color = $this->sanitize_color( $attrs[ $key ] );
+				if ( $color ) {
+					$vars[ $css_var ] = $color;
+				}
+			}
+		}
+
+		// Accent maps to two variables (purple + purple-600).
+		if ( ! empty( $attrs['accentColor'] ) ) {
+			$accent = $this->sanitize_color( $attrs['accentColor'] );
+			if ( $accent ) {
+				$vars['--zymarg-purple']     = $accent;
+				$vars['--zymarg-purple-600'] = $accent;
+			}
+		}
+
+		$style_parts = array();
+		foreach ( $vars as $k => $v ) {
+			$style_parts[] = $k . ':' . $v;
+		}
+		$style_attr = $style_parts
+			? ' style="' . esc_attr( implode( ';', $style_parts ) ) . '"'
+			: '';
+
 		$align       = isset( $attrs['align'] ) ? sanitize_html_class( $attrs['align'] ) : '';
 		$align_class = $align ? ' align' . $align : '';
 
-		return '<div class="zymarg-algolia-block-wrap' . esc_attr( $align_class ) . '">' .
+		return '<div class="zymarg-algolia-block-wrap' . esc_attr( $align_class ) . '"' . $style_attr . '>' .
 			Zymarg_Algolia_Frontend::render_html() .
 			'</div>';
 	}
 
 	/**
+	 * Light-weight color sanitization. Allows hex (#abc, #abcdef), rgb(...),
+	 * rgba(...), hsl(...), hsla(...), and CSS keywords — rejects anything
+	 * that could break out of a `style=""` attribute.
+	 */
+	protected function sanitize_color( $value ) {
+		$value = is_string( $value ) ? trim( $value ) : '';
+		if ( $value === '' ) {
+			return '';
+		}
+		// Reject anything with characters that could escape an attribute.
+		if ( preg_match( '/[<>"\'`]/', $value ) ) {
+			return '';
+		}
+		// Allow common color formats + CSS keywords.
+		if ( preg_match( '/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$/', $value ) ) {
+			return $value;
+		}
+		if ( preg_match( '/^(rgb|rgba|hsl|hsla)\([0-9.,%\s\/-]+\)$/i', $value ) ) {
+			return $value;
+		}
+		if ( preg_match( '/^[a-zA-Z]+$/', $value ) ) {
+			return $value;
+		}
+		return '';
+	}
+
+	/**
 	 * Enqueue the live search assets inside the Gutenberg / Elementor editor.
-	 * Without this the live preview shows the markup but the input is dead
-	 * (no instant dropdown). We still skip enqueuing if Algolia is not yet
-	 * configured (avoids console errors).
 	 */
 	public function enqueue_in_editor() {
 		$app_id     = zymarg_algolia_get_setting( 'app_id' );
@@ -132,7 +227,6 @@ class Zymarg_Algolia_Block {
 		if ( empty( $app_id ) || empty( $search_key ) ) {
 			return;
 		}
-		// Style + script handles are registered by Zymarg_Algolia_Frontend on init.
 		wp_enqueue_style( Zymarg_Algolia_Frontend::STYLE_HANDLE );
 		wp_enqueue_script( Zymarg_Algolia_Frontend::SCRIPT_HANDLE );
 	}
@@ -151,8 +245,6 @@ class Zymarg_Algolia_Block {
 
 	/**
 	 * Add a "ZYMARG" category to the Elementor panel.
-	 *
-	 * @param mixed $manager Elementor categories manager.
 	 */
 	public function register_elementor_category( $manager ) {
 		if ( ! is_object( $manager ) || ! method_exists( $manager, 'add_category' ) ) {
@@ -169,8 +261,6 @@ class Zymarg_Algolia_Block {
 
 	/**
 	 * Register the Elementor widget.
-	 *
-	 * @param mixed $widgets_manager Elementor widgets manager.
 	 */
 	public function register_elementor_widget( $widgets_manager ) {
 		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {

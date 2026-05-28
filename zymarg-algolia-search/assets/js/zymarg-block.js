@@ -1,11 +1,19 @@
 /*!
  * ZYMARG Algolia Search - Gutenberg block registration.
- * v1.0.5
+ * v1.0.6
  *
- * Adds a "ZYMARG Search" button to the WordPress block inserter.
- * Uses ServerSideRender so the search bar shows up live in the editor — no
- * need to publish to see how it looks. Editing the Placeholder in the
- * sidebar updates the preview instantly.
+ * Adds a "ZYMARG Search" button to the WordPress block inserter and
+ * exposes a full set of inspector controls (sidebar) so the user can
+ * customize:
+ *
+ *   - Placeholder text
+ *   - Max width / input height / font size / horizontal padding / icon size
+ *   - Border radius
+ *   - Dropdown max height / radius / offset
+ *   - Text / placeholder / background / border / accent / dropdown bg colors
+ *
+ * Uses ServerSideRender so the search bar renders live in the editor
+ * exactly as it will on the public page — no need to publish.
  */
 (function (wp) {
 	if (!wp || !wp.blocks || !wp.element) return;
@@ -30,7 +38,9 @@
 
 	var InspectorControls = blockEditor.InspectorControls;
 	var PanelBody         = components.PanelBody;
+	var PanelColorSettings = blockEditor.PanelColorSettings;
 	var TextControl       = components.TextControl;
+	var RangeControl      = components.RangeControl;
 
 	registerBlockType('zymarg/algolia-search', {
 		apiVersion:  2,
@@ -50,25 +60,103 @@
 			align: ['wide', 'full']
 		},
 		attributes: {
-			placeholder: { type: 'string', default: '' },
-			align:       { type: 'string' }
+			placeholder:        { type: 'string', default: '' },
+			align:              { type: 'string' },
+
+			maxWidth:           { type: 'number' },
+			inputHeight:        { type: 'number' },
+			fontSize:           { type: 'number' },
+			borderRadius:       { type: 'number' },
+			paddingX:           { type: 'number' },
+			iconSize:           { type: 'number' },
+
+			dropdownMaxHeight:  { type: 'number' },
+			dropdownRadius:     { type: 'number' },
+			dropdownOffset:     { type: 'number' },
+
+			textColor:          { type: 'string' },
+			placeholderColor:   { type: 'string' },
+			bgColor:            { type: 'string' },
+			borderColor:        { type: 'string' },
+			accentColor:        { type: 'string' },
+			dropdownBg:         { type: 'string' }
 		},
 
 		edit: function (props) {
+			var atts    = props.attributes;
+			var setAtts = props.setAttributes;
+
+			function range(label, key, min, max, def, step, help) {
+				if (!RangeControl) return null;
+				return el(RangeControl, {
+					label:    label,
+					value:    typeof atts[key] === 'number' ? atts[key] : def,
+					onChange: function (v) {
+						var o = {}; o[key] = (typeof v === 'number') ? v : undefined;
+						setAtts(o);
+					},
+					min:      min,
+					max:      max,
+					step:     step || 1,
+					help:     help || undefined,
+					allowReset: true
+				});
+			}
+
 			var inspector = null;
-			if (InspectorControls && PanelBody && TextControl) {
+			if (InspectorControls && PanelBody) {
+				var contentPanel = el(
+					PanelBody,
+					{ title: __('Content', 'zymarg-algolia'), initialOpen: true },
+					TextControl ? el(TextControl, {
+						label:    __('Placeholder text', 'zymarg-algolia'),
+						help:     __('Custom text shown inside the search bar. Leave empty for the default.', 'zymarg-algolia'),
+						value:    atts.placeholder || '',
+						onChange: function (val) { setAtts({ placeholder: val }); }
+					}) : null
+				);
+
+				var layoutPanel = el(
+					PanelBody,
+					{ title: __('Search bar size', 'zymarg-algolia'), initialOpen: false },
+					range(__('Max width (px)',        'zymarg-algolia'), 'maxWidth',     200, 1600, 720, 10,
+						__('Set this large to make the bar fill its container.', 'zymarg-algolia')),
+					range(__('Bar height (px)',       'zymarg-algolia'), 'inputHeight',   32,  100,  50, 1),
+					range(__('Text size (px)',        'zymarg-algolia'), 'fontSize',      11,   28,  15, 1),
+					range(__('Horizontal padding (px)','zymarg-algolia'), 'paddingX',      0,   40,  14, 1),
+					range(__('Icon size (px)',        'zymarg-algolia'), 'iconSize',      12,   32,  18, 1),
+					range(__('Border radius (px)',    'zymarg-algolia'), 'borderRadius',   0,   60,  14, 1)
+				);
+
+				var dropdownPanel = el(
+					PanelBody,
+					{ title: __('Results dropdown', 'zymarg-algolia'), initialOpen: false },
+					range(__('Max height (px)',        'zymarg-algolia'), 'dropdownMaxHeight', 120, 900, 480, 10,
+						__('How tall the dropdown grows before it scrolls.', 'zymarg-algolia')),
+					range(__('Border radius (px)',     'zymarg-algolia'), 'dropdownRadius',      0,  40,  14, 1),
+					range(__('Offset from bar (px)',   'zymarg-algolia'), 'dropdownOffset',      0,  30,   8, 1)
+				);
+
+				var colorsPanel = PanelColorSettings ? el(PanelColorSettings, {
+					title: __('Colors', 'zymarg-algolia'),
+					initialOpen: false,
+					colorSettings: [
+						{ value: atts.textColor,        onChange: function (v) { setAtts({ textColor: v }); },        label: __('Text color',        'zymarg-algolia') },
+						{ value: atts.placeholderColor, onChange: function (v) { setAtts({ placeholderColor: v }); }, label: __('Placeholder color', 'zymarg-algolia') },
+						{ value: atts.bgColor,          onChange: function (v) { setAtts({ bgColor: v }); },          label: __('Background color', 'zymarg-algolia') },
+						{ value: atts.borderColor,      onChange: function (v) { setAtts({ borderColor: v }); },      label: __('Border color',     'zymarg-algolia') },
+						{ value: atts.accentColor,      onChange: function (v) { setAtts({ accentColor: v }); },      label: __('Accent color',     'zymarg-algolia') },
+						{ value: atts.dropdownBg,       onChange: function (v) { setAtts({ dropdownBg: v }); },       label: __('Dropdown background','zymarg-algolia') }
+					]
+				}) : null;
+
 				inspector = el(
-					InspectorControls, null,
-					el(
-						PanelBody,
-						{ title: __('Search Settings', 'zymarg-algolia'), initialOpen: true },
-						el(TextControl, {
-							label:       __('Placeholder text', 'zymarg-algolia'),
-							help:        __('Custom text shown inside the search bar. Leave empty for the default.', 'zymarg-algolia'),
-							value:       props.attributes.placeholder || '',
-							onChange:    function (val) { props.setAttributes({ placeholder: val }); }
-						})
-					)
+					InspectorControls,
+					null,
+					contentPanel,
+					layoutPanel,
+					dropdownPanel,
+					colorsPanel
 				);
 			}
 
@@ -76,10 +164,9 @@
 			if (ServerSideRender) {
 				preview = el(ServerSideRender, {
 					block:      'zymarg/algolia-search',
-					attributes: props.attributes
+					attributes: atts
 				});
 			} else {
-				// Last-ditch fallback if ServerSideRender isn't available.
 				preview = el(
 					'div',
 					{ className: 'zymarg-algolia-block-fallback', style: {

@@ -1,18 +1,100 @@
 /*!
  * ZYMARG Algolia Search - Frontend instant search.
- * v1.0.5
+ * v1.0.6
  *
- * Renders a multi-index dropdown (products / vendors / categories) using
- * Algolia's lite client. No InstantSearch.js dependency. No page reload
- * while typing — the dropdown opens as soon as the user types one character.
+ * Talks to the Algolia REST API directly via window.fetch(). No external
+ * UMD library is loaded — this guarantees the search bar boots even if
+ * jsDelivr (or any CDN) is blocked, slow, or cached as a stale failure
+ * by an ad-blocker, WAF, or restrictive CSP.
+ *
+ * Multi-host failover (-dsn -> -1 -> -2 -> -3) so one DC outage never
+ * breaks the search. Race-protected requests, MutationObserver re-scan
+ * for block-editor / Elementor previews, and a clean fallback to the
+ * standard WP search page on submit.
  */
 (function () {
 	'use strict';
 
-	var BOOT_TIMEOUT_MS = 8000;
+	/* ---------------------------------------------------------------- */
+	/* Built-in Algolia REST client (no external dependency).            */
+	/* ---------------------------------------------------------------- */
+
+	function paramsToQueryString(p) {
+		if (!p) return '';
+		var parts = [];
+		for (var k in p) {
+			if (Object.prototype.hasOwnProperty.call(p, k)) {
+				parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(p[k]));
+			}
+		}
+		return parts.join('&');
+	}
+
+	function createAlgoliaClient(appId, apiKey) {
+		// Algolia DSN + 3 fallback hosts — gives ~99.99% availability.
+		var hosts = [
+			appId + '-dsn.algolia.net',
+			appId + '-1.algolianet.com',
+			appId + '-2.algolianet.com',
+			appId + '-3.algolianet.com'
+		];
+
+		return {
+			search: function (requests) {
+				var body = JSON.stringify({
+					requests: (requests || []).map(function (r) {
+						return {
+							indexName: r.indexName,
+							params: paramsToQueryString(r.params || {})
+						};
+					})
+				});
+
+				var i = 0;
+				function attempt() {
+					if (i >= hosts.length) {
+						return Promise.reject(new Error('All Algolia hosts unreachable'));
+					}
+					var host = hosts[i++];
+					return fetch('https://' + host + '/1/indexes/*/queries', {
+						method: 'POST',
+						headers: {
+							'X-Algolia-Application-Id': appId,
+							'X-Algolia-API-Key': apiKey,
+							'Content-Type': 'application/x-www-form-urlencoded'
+						},
+						body: body,
+						credentials: 'omit',
+						mode: 'cors'
+					}).then(function (res) {
+						if (res.ok) {
+							return res.json();
+						}
+						// 5xx -> try next host. 4xx -> surface the error.
+						if (res.status >= 500 && i < hosts.length) {
+							return attempt();
+						}
+						return res.json().catch(function () { return {}; }).then(function (j) {
+							var msg = (j && j.message) ? j.message : ('HTTP ' + res.status);
+							var err = new Error(msg);
+							err.status = res.status;
+							throw err;
+						});
+					}).catch(function (err) {
+						// Network error -> try next host.
+						if (!err.status && i < hosts.length) {
+							return attempt();
+						}
+						throw err;
+					});
+				}
+				return attempt();
+			}
+		};
+	}
 
 	/* ---------------------------------------------------------------- */
-	/* Boot                                                             */
+	/* Boot                                                              */
 	/* ---------------------------------------------------------------- */
 
 	function ready(fn) {
@@ -23,45 +105,34 @@
 		}
 	}
 
-	function waitForLib(maxMs, cb) {
-		var start = Date.now();
-		(function poll() {
-			if (typeof window.algoliasearch === 'function') {
-				cb(true);
-				return;
-			}
-			if (Date.now() - start > maxMs) {
-				cb(false);
-				return;
-			}
-			setTimeout(poll, 80);
-		})();
-	}
-
 	ready(function () {
-		waitForLib(BOOT_TIMEOUT_MS, function (ok) {
-			if (!ok) {
-				if (window.console && window.console.warn) {
-					console.warn('[ZymargAlgolia] algoliasearch library failed to load.');
-				}
-				return;
+		if (typeof window.fetch !== 'function') {
+			if (window.console && window.console.warn) {
+				console.warn('[ZymargAlgolia] window.fetch is not available; instant search disabled. Submit will still go to the WP search page.');
 			}
-			scan();
+			return;
+		}
 
-			// Re-scan when wrappers are dynamically added (block editor preview,
-			// Elementor preview iframe, AJAX-loaded headers, etc).
-			if (window.MutationObserver) {
-				var t;
-				var rescan = function () {
-					clearTimeout(t);
-					t = setTimeout(scan, 120);
-				};
-				new MutationObserver(rescan).observe(
-					document.documentElement,
-					{ childList: true, subtree: true }
-				);
-			}
-		});
+		scan();
+
+		// Re-scan when new wrappers appear (block editor preview, Elementor
+		// preview iframe, AJAX-loaded headers, etc).
+		if (window.MutationObserver) {
+			var t;
+			var rescan = function () {
+				clearTimeout(t);
+				t = setTimeout(scan, 120);
+			};
+			new MutationObserver(rescan).observe(
+				document.documentElement,
+				{ childList: true, subtree: true }
+			);
+		}
+
+		// One-line console banner so the user can confirm v1.0.6 is loaded.
+		if (window.console && window.console.info) {
+			console.info('[ZymargAlgolia] v1.0.6 ready');
+		}
 	});
 
 	function scan() {
@@ -79,7 +150,7 @@
 	}
 
 	/* ---------------------------------------------------------------- */
-	/* Helpers                                                          */
+	/* Helpers                                                           */
 	/* ---------------------------------------------------------------- */
 
 	function escapeHtml(str) {
@@ -99,7 +170,6 @@
 			hit._highlightResult[attr] &&
 			typeof hit._highlightResult[attr].value === 'string'
 		) {
-			// Algolia already wraps matches in <mark> via highlightPreTag/PostTag.
 			return hit._highlightResult[attr].value;
 		}
 		return escapeHtml(hit && hit[attr] ? hit[attr] : '');
@@ -115,7 +185,7 @@
 	}
 
 	/* ---------------------------------------------------------------- */
-	/* Wrapper init                                                     */
+	/* Wrapper init                                                      */
 	/* ---------------------------------------------------------------- */
 
 	function initWrapper(wrapper, cfg) {
@@ -138,7 +208,7 @@
 			emptyBtn.setAttribute('href', cfg.communityUrl || '/community');
 		}
 
-		var client = window.algoliasearch(cfg.appId, cfg.searchKey);
+		var client = createAlgoliaClient(cfg.appId, cfg.searchKey);
 		var lastReqId = 0;
 
 		var openDropdown  = function () { dropdown.hidden = false; };
@@ -258,8 +328,7 @@
 			var reqId = ++lastReqId;
 
 			client.search(requests).then(function (res) {
-				// Race-protect: only render the latest query's results.
-				if (reqId !== lastReqId) return;
+				if (reqId !== lastReqId) return; // a newer search has fired
 
 				hideLoading();
 				var p = (res && res.results && res.results[0]) || {};
@@ -278,7 +347,7 @@
 				if (reqId !== lastReqId) return;
 				hideLoading();
 				if (window.console) console.error('[ZymargAlgolia]', err);
-				// Still show the friendly "request" CTA so the user has somewhere to go.
+				// Show the friendly CTA so the user has somewhere to go.
 				renderEmpty();
 			});
 		};
