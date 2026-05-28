@@ -18,6 +18,16 @@
 
 .zymarg-algolia-wrapper {
 
+	/* ---------- Typography (1.0.13: local fonts only, zero external loads) ----------
+	   Heading: Cabinet Grotesk, falls back to Inter, then system fonts.
+	   Body: Inter, falls back to system fonts.
+	   No @font-face declarations are made by this plugin — the fonts must
+	   be loaded by your theme. If they aren't loaded the browser silently
+	   falls back to the next entry, so the plugin never blocks rendering
+	   and never adds page weight. */
+	--zymarg-font-heading: 'Cabinet Grotesk', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--zymarg-font-body:    'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
 	/* ---------- Brand colors ---------- */
 	--zymarg-purple:        #7B3FE4;
 	--zymarg-purple-600:    #6A2ED1;
@@ -93,7 +103,7 @@
 	width: 100%;
 	max-width: var(--zymarg-max-width);
 	margin: 0 auto;
-	font-family: inherit;
+	font-family: var(--zymarg-font-body);
 	color: var(--zymarg-text);
 	z-index: 50;
 }
@@ -210,7 +220,7 @@
 	height: 100%;
 	color: var(--zymarg-text);
 	padding: var(--zymarg-input-padding-y) 0;
-	font-family: inherit;
+	font-family: var(--zymarg-font-body);
 	box-sizing: border-box;
 }
 .zymarg-algolia-input::placeholder {
@@ -232,6 +242,7 @@
    visible effect on the input field. */
 .zymarg-algolia-wrapper .zymarg-algolia-inputwrap .zymarg-algolia-input,
 input.zymarg-algolia-input[type="search"] {
+	font-family:    var(--zymarg-font-body)         !important;
 	font-size:      var(--zymarg-font-size)         !important;
 	font-weight:    var(--zymarg-font-weight)       !important;
 	letter-spacing: var(--zymarg-letter-spacing)    !important;
@@ -323,6 +334,7 @@ input.zymarg-algolia-input[type="search"] {
 	border-top: 0;
 }
 .zymarg-algolia-section-title {
+	font-family: var(--zymarg-font-heading);
 	font-size: 11px;
 	letter-spacing: .08em;
 	text-transform: uppercase;
@@ -446,6 +458,7 @@ input.zymarg-algolia-input[type="search"] {
 }
 .zymarg-algolia-empty-text {
 	margin: 0 0 14px;
+	font-family: var(--zymarg-font-heading);
 	font-size: var(--zymarg-empty-text-size);
 	color: var(--zymarg-empty-text-color);
 }
@@ -475,6 +488,8 @@ input.zymarg-algolia-input[type="search"] {
    per-instance via inline style="" by Zymarg_Algolia_Search_CTA. */
 
 .zymarg-algolia-cta-banner {
+	--zymarg-font-heading:      'Cabinet Grotesk', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--zymarg-font-body:         'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	--zymarg-cta-max-width:     800px;
 	--zymarg-cta-padding-y:     32px;
 	--zymarg-cta-padding-x:     32px;
@@ -500,12 +515,13 @@ input.zymarg-algolia-input[type="search"] {
 	border-radius: var(--zymarg-cta-radius);
 	box-shadow: 0 4px 18px rgba(123, 63, 228, 0.08);
 	text-align: var(--zymarg-cta-align);
-	font-family: inherit;
+	font-family: var(--zymarg-font-body);
 	position: relative;
 }
 
 .zymarg-algolia-cta-banner .zymarg-algolia-cta-text {
 	margin: 0 0 18px;
+	font-family: var(--zymarg-font-heading);
 	font-size: var(--zymarg-cta-text-size);
 	color: var(--zymarg-cta-text);
 	line-height: 1.4;
@@ -519,6 +535,7 @@ input.zymarg-algolia-input[type="search"] {
 	padding: 12px 32px;
 	border-radius: 999px;
 	text-decoration: none;
+	font-family: var(--zymarg-font-body);
 	font-weight: 600;
 	font-size: var(--zymarg-cta-btn-size);
 	line-height: 1.2;

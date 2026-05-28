@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.12
+Stable tag: 1.0.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,12 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.13 =
+* **Typography:** plugin now uses **Cabinet Grotesk** for headings (section titles in dropdown, "Couldn't find" message, banner heading) and **Inter** for body text (input, hit titles, prices, buttons, links). Both are referenced **by name only** — no `@font-face`, no Google Fonts request, zero external HTTP. Your theme is responsible for loading the actual font files; if it doesn't, the plugin falls back to Inter, then to system fonts (`system-ui`, `-apple-system`, `BlinkMacSystemFont`, `'Segoe UI'`, `Roboto`).
+* **New CSS variables:** `--zymarg-font-heading` and `--zymarg-font-body`. Defined on both `.zymarg-algolia-wrapper` and `.zymarg-algolia-cta-banner`. Override in custom CSS to swap fonts per site without modifying the plugin.
+* **Improvement:** input field font-family now uses `var(--zymarg-font-body) !important` in the high-specificity rule, so Astra/Elementor/theme rules targeting `input[type="search"]` can no longer override the body font.
+* **Bumped JS internal VERSION constant** from 1.0.7 to 1.0.13 so the console banner accurately reports the running version.
 
 = 1.0.12 =
 * **New:** Global "CTA Mode" setting in Settings -> ZYMARG Algolia with three options:

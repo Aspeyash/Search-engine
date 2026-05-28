@@ -21,7 +21,7 @@
 ;(function () {
 	'use strict';
 
-	var VERSION = '1.0.7';
+	var VERSION = '1.0.13';
 
 	/* ---------------------------------------------------------------- */
 	/* Diagnostic state. zymargAlgoliaDebug() reads this.                */
