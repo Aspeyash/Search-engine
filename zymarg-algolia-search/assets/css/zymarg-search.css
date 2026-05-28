@@ -72,6 +72,7 @@
 	--zymarg-empty-btn-bg:     var(--zymarg-purple);
 	--zymarg-empty-btn-bg-h:   var(--zymarg-purple-600);
 	--zymarg-empty-btn-color:  #ffffff;
+	--zymarg-empty-btn-size:   14px;
 	--zymarg-empty-btn-radius: 999px;
 	--zymarg-empty-btn-padding-y: 10px;
 	--zymarg-empty-btn-padding-x: 22px;
@@ -107,6 +108,16 @@
    the bar behaves like a plain WP search form (type, hit Enter). */
 .zymarg-algolia-wrapper.zymarg-no-dropdown .zymarg-algolia-dropdown,
 .zymarg-no-dropdown .zymarg-algolia-dropdown {
+	display: none !important;
+}
+
+/* No-empty modifier — the "Show empty message" toggle is OFF. Hides
+   the "Couldn't find what you're looking for? Request Here" CTA so
+   nothing visible appears when the search returns zero results.
+   The JS additionally closes the dropdown when this class is set,
+   so the user sees no empty box at all. */
+.zymarg-algolia-wrapper.zymarg-no-empty .zymarg-algolia-empty,
+.zymarg-no-empty .zymarg-algolia-empty {
 	display: none !important;
 }
 
@@ -195,6 +206,33 @@
 .zymarg-algolia-input::-webkit-search-cancel-button {
 	-webkit-appearance: none;
 	appearance: none;
+}
+
+/* High-specificity overrides — defeat Astra / Elementor / generic theme
+   CSS that targets `input[type="search"]` with rules like
+   `font-size: 1rem; line-height: 1.5; padding: 8px 12px` and would
+   otherwise silently override the CSS variables our widget exposes.
+   These !important rules ensure the Elementor / Gutenberg controls for
+   text size, weight, line-height and vertical padding actually take
+   visible effect on the input field. */
+.zymarg-algolia-wrapper .zymarg-algolia-inputwrap .zymarg-algolia-input,
+input.zymarg-algolia-input[type="search"] {
+	font-size:      var(--zymarg-font-size)         !important;
+	font-weight:    var(--zymarg-font-weight)       !important;
+	letter-spacing: var(--zymarg-letter-spacing)    !important;
+	line-height:    var(--zymarg-input-line-height) !important;
+	padding-top:    var(--zymarg-input-padding-y)   !important;
+	padding-bottom: var(--zymarg-input-padding-y)   !important;
+	padding-left:   0                                !important;
+	padding-right:  0                                !important;
+	color:          var(--zymarg-text)              !important;
+	background:     transparent                      !important;
+	border:         0                                !important;
+	outline:        none                             !important;
+	box-shadow:     none                             !important;
+	margin:         0                                !important;
+	min-height:     0                                !important;
+	height:         100%                             !important;
 }
 
 .zymarg-algolia-clear {
@@ -397,7 +435,8 @@
 	border-radius: var(--zymarg-empty-btn-radius);
 	text-decoration: none;
 	font-weight: 600;
-	font-size: 14px;
+	font-size: var(--zymarg-empty-btn-size);
+	line-height: 1.2;
 	transition: background .15s ease, transform .1s ease;
 }
 .zymarg-algolia-empty-btn:hover {

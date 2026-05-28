@@ -551,12 +551,56 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'show_empty_message',
+			array(
+				'label'        => __( 'Show empty message', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When OFF the "Couldn\'t find what you\'re looking for? Request Here" CTA is hidden — when zero results match, the dropdown closes completely instead of showing the CTA.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => 'yes',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_responsive_control(
+			'empty_text_size',
+			array(
+				'label'      => __( 'Message text size', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 10, 'max' => 32, 'step' => 1 ) ),
+				'default'    => array( 'size' => 14, 'unit' => 'px' ),
+				'condition'  => array( 'show_empty_message' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-text-size: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
 			'empty_text_color',
 			array(
-				'label'     => __( 'Text color', 'zymarg-algolia' ),
+				'label'     => __( 'Message text color', 'zymarg-algolia' ),
 				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_empty_message' => 'yes' ),
 				'selectors' => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-text-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'empty_btn_size',
+			array(
+				'label'      => __( 'Button text size', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 10, 'max' => 32, 'step' => 1 ) ),
+				'default'    => array( 'size' => 14, 'unit' => 'px' ),
+				'condition'  => array( 'show_empty_message' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-btn-size: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -566,6 +610,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'     => __( 'Button background', 'zymarg-algolia' ),
 				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_empty_message' => 'yes' ),
 				'selectors' => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-btn-bg: {{VALUE}};',
 				),
@@ -577,6 +622,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'     => __( 'Button background (hover)', 'zymarg-algolia' ),
 				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_empty_message' => 'yes' ),
 				'selectors' => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-btn-bg-h: {{VALUE}};',
 				),
@@ -588,6 +634,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			array(
 				'label'     => __( 'Button text color', 'zymarg-algolia' ),
 				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_empty_message' => 'yes' ),
 				'selectors' => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-btn-color: {{VALUE}};',
 				),
@@ -602,6 +649,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'size_units' => array( 'px' ),
 				'range'      => array( 'px' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 				'default'    => array( 'size' => 999, 'unit' => 'px' ),
+				'condition'  => array( 'show_empty_message' => 'yes' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-btn-radius: {{SIZE}}{{UNIT}};',
 				),
@@ -622,6 +670,8 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		// Default = ON. So treat anything other than explicit empty string as "show".
 		$show_dd     = ! isset( $settings['show_dropdown'] ) || 'yes' === $settings['show_dropdown'];
 		$no_dropdown = ! $show_dd;
+		$show_empty  = ! isset( $settings['show_empty_message'] ) || 'yes' === $settings['show_empty_message'];
+		$no_empty    = ! $show_empty;
 
 		if ( '' !== $placeholder ) {
 			add_filter(
@@ -636,6 +686,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			'stretch'    => $stretch,
 			'fullBleed'  => $full_bleed,
 			'noDropdown' => $no_dropdown,
+			'noEmpty'    => $no_empty,
 		) );
 	}
 }

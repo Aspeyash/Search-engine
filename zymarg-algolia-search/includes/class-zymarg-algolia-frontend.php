@@ -109,6 +109,7 @@ class Zymarg_Algolia_Frontend {
 	 *   - 'stretch'    (bool) — drop max-width so the bar fills its parent.
 	 *   - 'fullBleed'  (bool) — break out of parent + span the entire viewport.
 	 *   - 'noDropdown' (bool) — hide the live results dropdown entirely.
+	 *   - 'noEmpty'    (bool) — hide the "Couldn't find..." empty-state CTA.
 	 * @return string
 	 */
 	public static function render_html( $args = array() ) {
@@ -116,11 +117,13 @@ class Zymarg_Algolia_Frontend {
 		$stretch     = ! empty( $args['stretch'] );
 		$full_bleed  = ! empty( $args['fullBleed'] );
 		$no_dropdown = ! empty( $args['noDropdown'] );
+		$no_empty    = ! empty( $args['noEmpty'] );
 
 		$classes = array( 'zymarg-algolia-wrapper' );
 		if ( $stretch )     $classes[] = 'zymarg-stretch';
 		if ( $full_bleed )  $classes[] = 'zymarg-fullbleed';
 		if ( $no_dropdown ) $classes[] = 'zymarg-no-dropdown';
+		if ( $no_empty )    $classes[] = 'zymarg-no-empty';
 		$wrap_cls = implode( ' ', $classes );
 
 		ob_start();

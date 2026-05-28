@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.8
+Stable tag: 1.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,12 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.9 =
+* **Fix:** Input-field controls (Text size / Text weight / Vertical text padding / Text line height) now actually apply on the page. The previous version had the right CSS variables but Astra / Elementor's global `input[type="search"]` rules were silently overriding them due to equal-specificity cascade order. v1.0.9 uses higher-specificity selectors plus `!important` for these critical user-controlled style props so theme CSS can no longer beat them.
+* **New:** "Show empty message" toggle in Elementor + Gutenberg + classic widget. Turn it OFF and the "Couldn't find what you're looking for? Request Here" CTA is hidden — when zero results match, the dropdown closes silently instead of showing the CTA.
+* **New:** "Message text size" + "Button text size" controls for the empty state in both Elementor (sliders) and Gutenberg block (range controls). All other empty-state controls (text color, button bg, hover bg, button text, button radius) are now hidden in Elementor when the message is toggled off.
+* **New CSS variable:** `--zymarg-empty-btn-size` (default 14px) — wire up the new button text size control.
 
 = 1.0.8 =
 * **New:** "Full screen width (break out of parent)" toggle in Elementor + Gutenberg block + classic widget. Spans the entire viewport regardless of how narrow the parent Elementor column / Astra section is, using the standard CSS breakout technique (`margin-left: calc(50% - 50vw); width: 100vw`). Use this when the Stretch toggle still feels limited because the parent container itself is constrained.

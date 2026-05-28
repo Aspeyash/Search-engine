@@ -70,6 +70,7 @@ class Zymarg_Algolia_Block {
 					'stretch'            => array( 'type' => 'boolean', 'default' => false ),
 					'fullBleed'          => array( 'type' => 'boolean', 'default' => false ),
 					'showDropdown'       => array( 'type' => 'boolean', 'default' => true ),
+					'showEmpty'          => array( 'type' => 'boolean', 'default' => true ),
 					'maxWidth'           => array( 'type' => 'number' ),
 					'inputHeight'        => array( 'type' => 'number' ),
 					'fontSize'           => array( 'type' => 'number' ),
@@ -86,6 +87,10 @@ class Zymarg_Algolia_Block {
 					'dropdownMaxHeight'  => array( 'type' => 'number' ),
 					'dropdownRadius'     => array( 'type' => 'number' ),
 					'dropdownOffset'     => array( 'type' => 'number' ),
+
+					// Empty state.
+					'emptyTextSize'      => array( 'type' => 'number' ),
+					'emptyBtnSize'       => array( 'type' => 'number' ),
 
 					// Colors.
 					'textColor'          => array( 'type' => 'string' ),
@@ -123,6 +128,8 @@ class Zymarg_Algolia_Block {
 		$full_bleed  = ! empty( $attrs['fullBleed'] );
 		// showDropdown defaults to true; only treat explicit false as "off".
 		$no_dropdown = isset( $attrs['showDropdown'] ) && false === $attrs['showDropdown'];
+		// showEmpty defaults to true; only treat explicit false as "off".
+		$no_empty    = isset( $attrs['showEmpty'] ) && false === $attrs['showEmpty'];
 
 		// Build inline `style="..."` of CSS variables (cascade to inner wrapper).
 		$vars = array();
@@ -139,6 +146,8 @@ class Zymarg_Algolia_Block {
 			'dropdownMaxHeight' => '--zymarg-dropdown-max-height',
 			'dropdownRadius'    => '--zymarg-dropdown-radius',
 			'dropdownOffset'    => '--zymarg-dropdown-offset',
+			'emptyTextSize'     => '--zymarg-empty-text-size',
+			'emptyBtnSize'      => '--zymarg-empty-btn-size',
 		);
 		foreach ( $num_map as $key => $css_var ) {
 			if ( isset( $attrs[ $key ] ) && is_numeric( $attrs[ $key ] ) ) {
@@ -191,6 +200,7 @@ class Zymarg_Algolia_Block {
 				'stretch'    => $stretch,
 				'fullBleed'  => $full_bleed,
 				'noDropdown' => $no_dropdown,
+				'noEmpty'    => $no_empty,
 			) ) .
 			'</div>';
 	}
@@ -289,6 +299,8 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		// Default = ON; only treat explicit "0" as off.
 		$show_dd     = ! isset( $instance['show_dropdown'] ) || ! empty( $instance['show_dropdown'] );
 		$no_dropdown = ! $show_dd;
+		$show_empty  = ! isset( $instance['show_empty'] ) || ! empty( $instance['show_empty'] );
+		$no_empty    = ! $show_empty;
 
 		if ( $placeholder ) {
 			$ph = (string) $placeholder;
@@ -308,6 +320,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 			'stretch'    => $stretch,
 			'fullBleed'  => $full_bleed,
 			'noDropdown' => $no_dropdown,
+			'noEmpty'    => $no_empty,
 		) );
 		echo $args['after_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
@@ -318,6 +331,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		$stretch     = ! empty( $instance['stretch'] );
 		$full_bleed  = ! empty( $instance['full_bleed'] );
 		$show_dd     = ! isset( $instance['show_dropdown'] ) || ! empty( $instance['show_dropdown'] );
+		$show_empty  = ! isset( $instance['show_empty'] ) || ! empty( $instance['show_empty'] );
 		?>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>">
@@ -353,6 +367,17 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		</p>
 		<p>
 			<input
+				id="<?php echo esc_attr( $this->get_field_id( 'show_empty' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'show_empty' ) ); ?>"
+				type="checkbox"
+				value="1"
+				<?php checked( $show_empty, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'show_empty' ) ); ?>">
+				<?php esc_html_e( 'Show empty message ("Couldn\'t find...")', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
+		<p>
+			<input
 				id="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'stretch' ) ); ?>"
 				type="checkbox"
@@ -383,6 +408,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 			'stretch'       => ! empty( $new_instance['stretch'] ) ? 1 : 0,
 			'full_bleed'    => ! empty( $new_instance['full_bleed'] ) ? 1 : 0,
 			'show_dropdown' => ! empty( $new_instance['show_dropdown'] ) ? 1 : 0,
+			'show_empty'    => ! empty( $new_instance['show_empty'] ) ? 1 : 0,
 		);
 	}
 }

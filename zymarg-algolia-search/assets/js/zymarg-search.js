@@ -323,6 +323,14 @@
 
 		var renderEmpty = function () {
 			resultsBox.innerHTML = '';
+			// "Show empty message" toggle off → close dropdown completely
+			// instead of showing the "Couldn't find..." CTA. This does not
+			// affect when/how instant search fires; it only changes what
+			// happens visually when zero results return.
+			if (wrapper.classList.contains('zymarg-no-empty')) {
+				closeDropdown();
+				return;
+			}
 			emptyBox.hidden = false;
 			openDropdown();
 		};

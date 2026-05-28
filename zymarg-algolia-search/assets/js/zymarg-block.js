@@ -70,6 +70,7 @@
 			stretch:            { type: 'boolean', default: false },
 			fullBleed:          { type: 'boolean', default: false },
 			showDropdown:       { type: 'boolean', default: true },
+			showEmpty:          { type: 'boolean', default: true },
 			maxWidth:           { type: 'number' },
 			inputHeight:        { type: 'number' },
 			fontSize:           { type: 'number' },
@@ -84,6 +85,9 @@
 			dropdownMaxHeight:  { type: 'number' },
 			dropdownRadius:     { type: 'number' },
 			dropdownOffset:     { type: 'number' },
+
+			emptyTextSize:      { type: 'number' },
+			emptyBtnSize:       { type: 'number' },
 
 			textColor:          { type: 'string' },
 			placeholderColor:   { type: 'string' },
@@ -132,6 +136,12 @@
 						onChange: function (v) { setAtts({ showDropdown: !!v }); }
 					}) : null,
 					ToggleControl ? el(ToggleControl, {
+						label:    __('Show empty message', 'zymarg-algolia'),
+						help:     __('When OFF the "Couldn\'t find what you\'re looking for? Request Here" CTA is hidden — when zero results match, the dropdown closes silently.', 'zymarg-algolia'),
+						checked:  atts.showEmpty !== false,
+						onChange: function (v) { setAtts({ showEmpty: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
 						label:    __('Full screen width (break out of parent)', 'zymarg-algolia'),
 						help:     __('Spans the entire viewport regardless of parent container — use this when the parent column has a max-width that\'s too narrow.', 'zymarg-algolia'),
 						checked:  !!atts.fullBleed,
@@ -176,6 +186,13 @@
 					range(__('Offset from bar (px)',   'zymarg-algolia'), 'dropdownOffset',      0,   50,   8, 1)
 				);
 
+				var emptyPanel = el(
+					PanelBody,
+					{ title: __('Empty state ("Couldn\'t find...")', 'zymarg-algolia'), initialOpen: false },
+					range(__('Message text size (px)', 'zymarg-algolia'), 'emptyTextSize',      10,   32,  14, 1),
+					range(__('Button text size (px)',  'zymarg-algolia'), 'emptyBtnSize',       10,   32,  14, 1)
+				);
+
 				var colorsPanel = PanelColorSettings ? el(PanelColorSettings, {
 					title: __('Colors', 'zymarg-algolia'),
 					initialOpen: false,
@@ -196,6 +213,7 @@
 					layoutPanel,
 					inputPanel,
 					dropdownPanel,
+					emptyPanel,
 					colorsPanel
 				);
 			}
