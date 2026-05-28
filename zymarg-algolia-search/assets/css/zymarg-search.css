@@ -1,29 +1,144 @@
 /*!
- * ZYMARG Algolia Search - Brand styled
- * White base, soft purple radial gradient orbs, ZYMARG purple accents.
+ * ZYMARG Algolia Search - Brand styled.
+ * v1.0.7
+ *
+ * Every dimension and color is a CSS custom property scoped to the wrapper
+ * element. Elementor's `{{WRAPPER}}` selectors and Gutenberg's inline
+ * styles can override anything per-instance — without leaking into other
+ * widgets on the same page.
+ *
+ * v1.0.7 adds:
+ *   - --zymarg-input-padding-y  (vertical text padding inside the input)
+ *   - --zymarg-input-line-height
+ *   - --zymarg-input-min-width  (force the input to stretch even on very
+ *     wide containers)
+ *   - .zymarg-stretch modifier  (drops max-width to 100% so the bar fills
+ *     whatever container it's in)
  */
 
-:root {
-	--zymarg-purple: #7B3FE4;
-	--zymarg-purple-600: #6A2ED1;
-	--zymarg-purple-50: #F5EEFF;
-	--zymarg-purple-soft: rgba(123, 63, 228, 0.18);
-	--zymarg-text: #1a1a1a;
-	--zymarg-muted: #6b6b73;
-	--zymarg-border: #e6e3ee;
-	--zymarg-bg: #ffffff;
-	--zymarg-shadow: 0 10px 40px -10px rgba(123, 63, 228, 0.25), 0 4px 12px rgba(0,0,0,0.05);
-	--zymarg-radius: 14px;
-}
-
 .zymarg-algolia-wrapper {
+
+	/* ---------- Brand colors ---------- */
+	--zymarg-purple:        #7B3FE4;
+	--zymarg-purple-600:    #6A2ED1;
+	--zymarg-purple-50:     #F5EEFF;
+	--zymarg-purple-soft:   rgba(123, 63, 228, 0.18);
+
+	/* ---------- Text colors ---------- */
+	--zymarg-text:          #1a1a1a;
+	--zymarg-muted:         #6b6b73;
+	--zymarg-placeholder:   #6b6b73;
+
+	/* ---------- Input bar ---------- */
+	--zymarg-bg:            #ffffff;
+	--zymarg-border:        #e6e3ee;
+	--zymarg-border-width:  1.5px;
+	--zymarg-radius:        14px;
+	--zymarg-max-width:     720px;
+	--zymarg-input-height:  50px;
+	--zymarg-padding-x:     14px;
+	--zymarg-icon-size:     18px;
+	--zymarg-icon-gap:      10px;
+
+	/* ---------- Input text ---------- */
+	--zymarg-font-size:        15px;
+	--zymarg-font-weight:      400;
+	--zymarg-letter-spacing:   0;
+	--zymarg-input-padding-y:  0;
+	--zymarg-input-line-height: 1.4;
+	--zymarg-input-min-width:  0;
+
+	/* ---------- Dropdown ---------- */
+	--zymarg-dropdown-bg:         #ffffff;
+	--zymarg-dropdown-border:     #e6e3ee;
+	--zymarg-dropdown-radius:     14px;
+	--zymarg-dropdown-shadow:     0 10px 40px -10px rgba(123, 63, 228, 0.25), 0 4px 12px rgba(0,0,0,0.05);
+	--zymarg-dropdown-offset:     8px;
+	--zymarg-dropdown-max-height: 70vh;
+	--zymarg-dropdown-font-size:  14px;
+
+	/* ---------- Hits ---------- */
+	--zymarg-hit-padding-y:    10px;
+	--zymarg-hit-padding-x:    16px;
+	--zymarg-hit-img-size:     44px;
+	--zymarg-hit-hover-bg:     var(--zymarg-purple-50);
+	--zymarg-hit-title-size:   14px;
+	--zymarg-hit-meta-size:    12px;
+	--zymarg-hit-price-color:  var(--zymarg-purple);
+
+	/* ---------- Clear button (×) ---------- */
+	--zymarg-clear-size:        26px;
+	--zymarg-clear-icon-size:   14px;
+	--zymarg-clear-radius:      50%;
+	--zymarg-clear-gap:         0px;     /* margin between the X and the input text */
+	--zymarg-clear-edge:        0px;     /* extra margin between the X and the wrap edge */
+	--zymarg-clear-bg:          var(--zymarg-purple-50);
+	--zymarg-clear-color:       var(--zymarg-purple);
+	--zymarg-clear-bg-hover:    var(--zymarg-purple);
+	--zymarg-clear-color-hover: #ffffff;
+
+	/* ---------- Empty state ---------- */
+	--zymarg-empty-text-color: var(--zymarg-text);
+	--zymarg-empty-text-size:  14px;
+	--zymarg-empty-btn-bg:     var(--zymarg-purple);
+	--zymarg-empty-btn-bg-h:   var(--zymarg-purple-600);
+	--zymarg-empty-btn-color:  #ffffff;
+	--zymarg-empty-btn-size:   14px;
+	--zymarg-empty-btn-radius: 999px;
+	--zymarg-empty-btn-padding-y: 10px;
+	--zymarg-empty-btn-padding-x: 22px;
+
+	/* ---------- Layout ---------- */
 	position: relative;
 	width: 100%;
-	max-width: 720px;
+	max-width: var(--zymarg-max-width);
 	margin: 0 auto;
 	font-family: inherit;
 	color: var(--zymarg-text);
 	z-index: 50;
+}
+
+/* Stretch modifier — drop the max-width cap so the bar fills its container. */
+.zymarg-algolia-wrapper.zymarg-stretch {
+	max-width: 100%;
+}
+
+/* No-clear modifier — "Show clear button" toggle is OFF. */
+.zymarg-algolia-wrapper.zymarg-no-clear .zymarg-algolia-clear,
+.zymarg-no-clear .zymarg-algolia-clear {
+	display: none !important;
+}
+
+/* Clear-left modifier — X button appears on the LEFT side of the input
+   (before the search icon) instead of the default right side. */
+.zymarg-algolia-wrapper.zymarg-clear-left .zymarg-algolia-clear,
+.zymarg-clear-left .zymarg-algolia-clear {
+	order: -1;
+	margin-left: var(--zymarg-clear-edge);
+	margin-right: var(--zymarg-clear-gap);
+}
+
+/* No-dropdown modifier — the "Show results dropdown" toggle in the
+   Elementor / Gutenberg widget is OFF. Hide the dropdown entirely so
+   the bar behaves like a plain WP search form (type, hit Enter). */
+.zymarg-algolia-wrapper.zymarg-no-dropdown .zymarg-algolia-dropdown,
+.zymarg-no-dropdown .zymarg-algolia-dropdown {
+	display: none !important;
+}
+
+/* No-empty modifier — the "Show empty message" toggle is OFF. Hides
+   the "Couldn't find what you're looking for? Request Here" CTA so
+   nothing visible appears when the search returns zero results.
+   The JS additionally closes the dropdown when this class is set,
+   so the user sees no empty box at all. */
+.zymarg-algolia-wrapper.zymarg-no-empty .zymarg-algolia-empty,
+.zymarg-no-empty .zymarg-algolia-empty {
+	display: none !important;
+}
+
+/* The block wrapper from Gutenberg should not collapse on flex parents. */
+.zymarg-algolia-block-wrap {
+	width: 100%;
 }
 
 /* ---------- Background orbs ---------- */
@@ -62,10 +177,10 @@
 	display: flex;
 	align-items: center;
 	background: var(--zymarg-bg);
-	border: 1.5px solid var(--zymarg-border);
+	border: var(--zymarg-border-width) solid var(--zymarg-border);
 	border-radius: var(--zymarg-radius);
-	padding: 0 12px 0 14px;
-	height: 50px;
+	padding: 0 12px 0 var(--zymarg-padding-x);
+	height: var(--zymarg-input-height);
 	transition: border-color .15s ease, box-shadow .15s ease;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
@@ -75,26 +190,32 @@
 }
 
 .zymarg-algolia-icon {
-	width: 18px;
-	height: 18px;
+	width: var(--zymarg-icon-size);
+	height: var(--zymarg-icon-size);
 	color: var(--zymarg-purple);
 	flex-shrink: 0;
-	margin-right: 10px;
+	margin-right: var(--zymarg-icon-gap);
 }
 
 .zymarg-algolia-input {
-	flex: 1;
+	flex: 1 1 auto;
+	min-width: var(--zymarg-input-min-width);
 	border: 0;
 	outline: none;
 	background: transparent;
-	font-size: 15px;
+	font-size: var(--zymarg-font-size);
+	font-weight: var(--zymarg-font-weight);
+	letter-spacing: var(--zymarg-letter-spacing);
+	line-height: var(--zymarg-input-line-height);
 	height: 100%;
 	color: var(--zymarg-text);
-	padding: 0;
-	min-width: 0;
+	padding: var(--zymarg-input-padding-y) 0;
+	font-family: inherit;
+	box-sizing: border-box;
 }
 .zymarg-algolia-input::placeholder {
-	color: var(--zymarg-muted);
+	color: var(--zymarg-placeholder);
+	opacity: 1;
 }
 .zymarg-algolia-input::-webkit-search-decoration,
 .zymarg-algolia-input::-webkit-search-cancel-button {
@@ -102,39 +223,74 @@
 	appearance: none;
 }
 
+/* High-specificity overrides — defeat Astra / Elementor / generic theme
+   CSS that targets `input[type="search"]` with rules like
+   `font-size: 1rem; line-height: 1.5; padding: 8px 12px` and would
+   otherwise silently override the CSS variables our widget exposes.
+   These !important rules ensure the Elementor / Gutenberg controls for
+   text size, weight, line-height and vertical padding actually take
+   visible effect on the input field. */
+.zymarg-algolia-wrapper .zymarg-algolia-inputwrap .zymarg-algolia-input,
+input.zymarg-algolia-input[type="search"] {
+	font-size:      var(--zymarg-font-size)         !important;
+	font-weight:    var(--zymarg-font-weight)       !important;
+	letter-spacing: var(--zymarg-letter-spacing)    !important;
+	line-height:    var(--zymarg-input-line-height) !important;
+	padding-top:    var(--zymarg-input-padding-y)   !important;
+	padding-bottom: var(--zymarg-input-padding-y)   !important;
+	padding-left:   0                                !important;
+	padding-right:  0                                !important;
+	color:          var(--zymarg-text)              !important;
+	background:     transparent                      !important;
+	border:         0                                !important;
+	outline:        none                             !important;
+	box-shadow:     none                             !important;
+	margin:         0                                !important;
+	min-height:     0                                !important;
+	height:         100%                             !important;
+}
+
 .zymarg-algolia-clear {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 26px;
-	height: 26px;
-	border-radius: 50%;
+	width: var(--zymarg-clear-size);
+	height: var(--zymarg-clear-size);
+	border-radius: var(--zymarg-clear-radius);
 	border: 0;
-	background: var(--zymarg-purple-50);
-	color: var(--zymarg-purple);
+	background: var(--zymarg-clear-bg);
+	color: var(--zymarg-clear-color);
 	cursor: pointer;
 	flex-shrink: 0;
+	padding: 0;
+	margin-left: var(--zymarg-clear-gap);   /* space from input text */
+	margin-right: var(--zymarg-clear-edge); /* space to wrap right edge */
+	transition: background .15s ease, color .15s ease;
 }
 .zymarg-algolia-clear:hover {
-	background: var(--zymarg-purple);
-	color: #fff;
+	background: var(--zymarg-clear-bg-hover);
+	color: var(--zymarg-clear-color-hover);
+}
+.zymarg-algolia-clear svg {
+	width: var(--zymarg-clear-icon-size);
+	height: var(--zymarg-clear-icon-size);
 }
 
 /* ---------- Dropdown ---------- */
 
 .zymarg-algolia-dropdown {
 	position: absolute;
-	top: calc(100% + 8px);
+	top: calc(100% + var(--zymarg-dropdown-offset));
 	left: 0;
 	right: 0;
-	background: var(--zymarg-bg);
-	border: 1px solid var(--zymarg-border);
-	border-radius: var(--zymarg-radius);
-	box-shadow: var(--zymarg-shadow);
-	overflow: hidden;
+	background: var(--zymarg-dropdown-bg);
+	border: 1px solid var(--zymarg-dropdown-border);
+	border-radius: var(--zymarg-dropdown-radius);
+	box-shadow: var(--zymarg-dropdown-shadow);
 	z-index: 60;
-	max-height: 70vh;
+	max-height: var(--zymarg-dropdown-max-height);
 	overflow-y: auto;
+	font-size: var(--zymarg-dropdown-font-size);
 	animation: zymarg-fade .14s ease;
 }
 
@@ -161,7 +317,7 @@
 
 .zymarg-algolia-section {
 	padding: 6px 0;
-	border-top: 1px solid var(--zymarg-border);
+	border-top: 1px solid var(--zymarg-dropdown-border);
 }
 .zymarg-algolia-section:first-child {
 	border-top: 0;
@@ -180,7 +336,7 @@
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 10px 16px;
+	padding: var(--zymarg-hit-padding-y) var(--zymarg-hit-padding-x);
 	color: var(--zymarg-text);
 	text-decoration: none;
 	transition: background .12s ease;
@@ -188,13 +344,13 @@
 .zymarg-algolia-hit:hover,
 .zymarg-algolia-hit.is-active,
 .zymarg-algolia-hit:focus {
-	background: var(--zymarg-purple-50);
+	background: var(--zymarg-hit-hover-bg);
 	outline: none;
 }
 
 .zymarg-algolia-hit-img {
-	width: 44px;
-	height: 44px;
+	width: var(--zymarg-hit-img-size);
+	height: var(--zymarg-hit-img-size);
 	border-radius: 8px;
 	object-fit: cover;
 	background: var(--zymarg-purple-50);
@@ -207,7 +363,7 @@
 }
 .zymarg-algolia-hit-title {
 	display: block;
-	font-size: 14px;
+	font-size: var(--zymarg-hit-title-size);
 	font-weight: 600;
 	color: var(--zymarg-text);
 	white-space: nowrap;
@@ -216,7 +372,7 @@
 }
 .zymarg-algolia-hit-meta {
 	display: block;
-	font-size: 12px;
+	font-size: var(--zymarg-hit-meta-size);
 	color: var(--zymarg-muted);
 	margin-top: 2px;
 	white-space: nowrap;
@@ -225,9 +381,9 @@
 }
 
 .zymarg-algolia-hit-price {
-	font-size: 14px;
+	font-size: var(--zymarg-hit-title-size);
 	font-weight: 700;
-	color: var(--zymarg-purple);
+	color: var(--zymarg-hit-price-color);
 	flex-shrink: 0;
 	margin-left: 8px;
 }
@@ -276,7 +432,7 @@
 	font-weight: 600;
 	color: var(--zymarg-purple);
 	text-decoration: none;
-	border-top: 1px solid var(--zymarg-border);
+	border-top: 1px solid var(--zymarg-dropdown-border);
 }
 .zymarg-algolia-viewall:hover {
 	background: var(--zymarg-purple-50);
@@ -290,50 +446,111 @@
 }
 .zymarg-algolia-empty-text {
 	margin: 0 0 14px;
-	font-size: 14px;
-	color: var(--zymarg-text);
+	font-size: var(--zymarg-empty-text-size);
+	color: var(--zymarg-empty-text-color);
 }
 .zymarg-algolia-empty-btn {
 	display: inline-block;
-	background: var(--zymarg-purple);
-	color: #fff !important;
-	padding: 10px 22px;
-	border-radius: 999px;
+	background: var(--zymarg-empty-btn-bg);
+	color: var(--zymarg-empty-btn-color) !important;
+	padding: var(--zymarg-empty-btn-padding-y) var(--zymarg-empty-btn-padding-x);
+	border-radius: var(--zymarg-empty-btn-radius);
 	text-decoration: none;
 	font-weight: 600;
-	font-size: 14px;
+	font-size: var(--zymarg-empty-btn-size);
+	line-height: 1.2;
 	transition: background .15s ease, transform .1s ease;
 }
 .zymarg-algolia-empty-btn:hover {
-	background: var(--zymarg-purple-600);
+	background: var(--zymarg-empty-btn-bg-h);
 	transform: translateY(-1px);
 }
 .zymarg-algolia-empty-btn:active {
 	transform: translateY(0);
 }
 
-/* ---------- Mobile ---------- */
+/* ---------- Search-results-page CTA banner (1.0.12+) ----------
+   Auto-injected below the WP search results when the global CTA mode
+   is set to "search_page". All sizes / colors are CSS variables, set
+   per-instance via inline style="" by Zymarg_Algolia_Search_CTA. */
 
+.zymarg-algolia-cta-banner {
+	--zymarg-cta-max-width:     800px;
+	--zymarg-cta-padding-y:     32px;
+	--zymarg-cta-padding-x:     32px;
+	--zymarg-cta-margin-top:    40px;
+	--zymarg-cta-margin-bottom: 40px;
+	--zymarg-cta-radius:        14px;
+	--zymarg-cta-text-size:     18px;
+	--zymarg-cta-btn-size:      16px;
+	--zymarg-cta-bg:            #ffffff;
+	--zymarg-cta-text:          #1a1a1a;
+	--zymarg-cta-btn-bg:        #7B3FE4;
+	--zymarg-cta-btn-color:     #ffffff;
+	--zymarg-cta-align:         center;
+
+	display: block;
+	box-sizing: border-box;
+	max-width: var(--zymarg-cta-max-width);
+	margin: var(--zymarg-cta-margin-top) auto var(--zymarg-cta-margin-bottom);
+	padding: var(--zymarg-cta-padding-y) var(--zymarg-cta-padding-x);
+	background: var(--zymarg-cta-bg);
+	color: var(--zymarg-cta-text);
+	border: 1px solid rgba(123, 63, 228, 0.10);
+	border-radius: var(--zymarg-cta-radius);
+	box-shadow: 0 4px 18px rgba(123, 63, 228, 0.08);
+	text-align: var(--zymarg-cta-align);
+	font-family: inherit;
+	position: relative;
+}
+
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-text {
+	margin: 0 0 18px;
+	font-size: var(--zymarg-cta-text-size);
+	color: var(--zymarg-cta-text);
+	line-height: 1.4;
+	font-weight: 500;
+}
+
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-btn {
+	display: inline-block;
+	background: var(--zymarg-cta-btn-bg);
+	color: var(--zymarg-cta-btn-color) !important;
+	padding: 12px 32px;
+	border-radius: 999px;
+	text-decoration: none;
+	font-weight: 600;
+	font-size: var(--zymarg-cta-btn-size);
+	line-height: 1.2;
+	transition: opacity .15s ease, transform .1s ease;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-btn:hover {
+	opacity: 0.92;
+	transform: translateY(-1px);
+}
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-btn:active {
+	transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+	.zymarg-algolia-cta-banner {
+		max-width: 100%;
+		margin-left: 16px;
+		margin-right: 16px;
+	}
+}
+
+/* ---------- Mobile ---------- */
 @media (max-width: 640px) {
 	.zymarg-algolia-wrapper {
 		max-width: 100%;
 	}
-	.zymarg-algolia-inputwrap {
-		height: 46px;
-		border-radius: 12px;
-	}
 	.zymarg-algolia-input {
-		font-size: 16px; /* prevents iOS zoom-on-focus */
+		font-size: max(var(--zymarg-font-size), 16px); /* prevents iOS zoom-on-focus */
 	}
 	.zymarg-algolia-dropdown {
 		max-height: 75vh;
-	}
-	.zymarg-algolia-hit {
-		padding: 10px 14px;
-	}
-	.zymarg-algolia-hit-img {
-		width: 40px;
-		height: 40px;
 	}
 	.zymarg-algolia-orb-1,
 	.zymarg-algolia-orb-2 {
