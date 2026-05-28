@@ -3,7 +3,7 @@
  * Plugin Name:       ZYMARG Algolia Search
  * Plugin URI:        https://github.com/Aspeyash/Search-engine-
  * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board. Drag-and-drop block + Elementor widget — no shortcode required.
- * Version:           1.0.9
+ * Version:           1.0.10
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '1.0.9' );
+define( 'ZYMARG_ALGOLIA_VERSION', '1.0.10' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );

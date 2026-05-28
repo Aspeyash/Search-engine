@@ -107,23 +107,26 @@ class Zymarg_Algolia_Frontend {
 	 *
 	 * @param array $args Optional. Supported keys:
 	 *   - 'stretch'    (bool) — drop max-width so the bar fills its parent.
-	 *   - 'fullBleed'  (bool) — break out of parent + span the entire viewport.
 	 *   - 'noDropdown' (bool) — hide the live results dropdown entirely.
 	 *   - 'noEmpty'    (bool) — hide the "Couldn't find..." empty-state CTA.
+	 *   - 'noClear'    (bool) — hide the X (clear) button entirely.
+	 *   - 'clearLeft'  (bool) — place the X on the LEFT side of the input.
 	 * @return string
 	 */
 	public static function render_html( $args = array() ) {
 		$args        = is_array( $args ) ? $args : array();
 		$stretch     = ! empty( $args['stretch'] );
-		$full_bleed  = ! empty( $args['fullBleed'] );
 		$no_dropdown = ! empty( $args['noDropdown'] );
 		$no_empty    = ! empty( $args['noEmpty'] );
+		$no_clear    = ! empty( $args['noClear'] );
+		$clear_left  = ! empty( $args['clearLeft'] );
 
 		$classes = array( 'zymarg-algolia-wrapper' );
 		if ( $stretch )     $classes[] = 'zymarg-stretch';
-		if ( $full_bleed )  $classes[] = 'zymarg-fullbleed';
 		if ( $no_dropdown ) $classes[] = 'zymarg-no-dropdown';
 		if ( $no_empty )    $classes[] = 'zymarg-no-empty';
+		if ( $no_clear )    $classes[] = 'zymarg-no-clear';
+		if ( $clear_left )  $classes[] = 'zymarg-clear-left';
 		$wrap_cls = implode( ' ', $classes );
 
 		ob_start();
@@ -149,7 +152,7 @@ class Zymarg_Algolia_Frontend {
 						aria-label="<?php esc_attr_e( 'Search', 'zymarg-algolia' ); ?>"
 						placeholder="<?php echo esc_attr( apply_filters( 'zymarg_algolia_placeholder', __( 'Search products, vendors, categories…', 'zymarg-algolia' ) ) ); ?>" />
 					<button type="button" class="zymarg-algolia-clear" aria-label="Clear" hidden>
-						<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<path d="M6 6l12 12M18 6L6 18" stroke="currentColor"
 								stroke-width="2" stroke-linecap="round"/>
 						</svg>

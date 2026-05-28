@@ -107,29 +107,15 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
-			'full_bleed',
-			array(
-				'label'        => __( 'Full screen width (break out of parent)', 'zymarg-algolia' ),
-				'type'         => \Elementor\Controls_Manager::SWITCHER,
-				'description'  => __( 'Spans the entire viewport regardless of parent container. Use this when the Astra/Elementor section the bar lives in has a max-width that\'s too narrow — e.g. when the Stretch toggle still feels limited because the parent column itself is constrained.', 'zymarg-algolia' ),
-				'label_on'     => __( 'On', 'zymarg-algolia' ),
-				'label_off'    => __( 'Off', 'zymarg-algolia' ),
-				'default'      => '',
-				'return_value' => 'yes',
-			)
-		);
-
-		$this->add_control(
 			'stretch',
 			array(
 				'label'        => __( 'Stretch to full container width', 'zymarg-algolia' ),
 				'type'         => \Elementor\Controls_Manager::SWITCHER,
-				'description'  => __( 'When ON, the bar ignores Max width and fills 100% of its immediate parent container. Use "Full screen width" above to also break out of the parent.', 'zymarg-algolia' ),
+				'description'  => __( 'When ON, the bar ignores Max width and fills 100% of its immediate parent container.', 'zymarg-algolia' ),
 				'label_on'     => __( 'On', 'zymarg-algolia' ),
 				'label_off'    => __( 'Off', 'zymarg-algolia' ),
 				'default'      => '',
 				'return_value' => 'yes',
-				'condition'    => array( 'full_bleed!' => 'yes' ),
 				'selectors'    => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => 'max-width: 100% !important;',
 				),
@@ -140,7 +126,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			'max_width',
 			array(
 				'label'       => __( 'Max width', 'zymarg-algolia' ),
-				'description' => __( 'Goes up to 5000px. Ignored if "Stretch" or "Full screen width" is ON.', 'zymarg-algolia' ),
+				'description' => __( 'Goes up to 5000px. Ignored if "Stretch" is ON.', 'zymarg-algolia' ),
 				'type'        => \Elementor\Controls_Manager::SLIDER,
 				'size_units'  => array( 'px', '%', 'vw' ),
 				'range'       => array(
@@ -150,8 +136,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				),
 				'default'     => array( 'size' => 720, 'unit' => 'px' ),
 				'condition'   => array(
-					'stretch!'    => 'yes',
-					'full_bleed!' => 'yes',
+					'stretch!' => 'yes',
 				),
 				'selectors'   => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-max-width: {{SIZE}}{{UNIT}};',
@@ -539,6 +524,184 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		/* ============================================================ */
+		/* Style tab > Clear button (X).                                 */
+		/* ============================================================ */
+
+		$this->start_controls_section(
+			'section_style_clear',
+			array(
+				'label' => __( 'Clear button (×)', 'zymarg-algolia' ),
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'show_clear_btn',
+			array(
+				'label'        => __( 'Show clear button', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When OFF the X button never appears — typed text can only be cleared by manual selection / backspace.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => 'yes',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'clear_position',
+			array(
+				'label'     => __( 'Position', 'zymarg-algolia' ),
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => array(
+					'right' => array(
+						'title' => __( 'Right', 'zymarg-algolia' ),
+						'icon'  => 'eicon-text-align-right',
+					),
+					'left'  => array(
+						'title' => __( 'Left', 'zymarg-algolia' ),
+						'icon'  => 'eicon-text-align-left',
+					),
+				),
+				'default'   => 'right',
+				'condition' => array( 'show_clear_btn' => 'yes' ),
+				'toggle'    => false,
+			)
+		);
+
+		$this->add_responsive_control(
+			'clear_size',
+			array(
+				'label'      => __( 'Button size', 'zymarg-algolia' ),
+				'description'=> __( 'Width and height of the round button. Drag low for a small button, high for a big one.', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 12, 'max' => 70, 'step' => 1 ) ),
+				'default'    => array( 'size' => 26, 'unit' => 'px' ),
+				'condition'  => array( 'show_clear_btn' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-size: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'clear_icon_size',
+			array(
+				'label'      => __( 'Icon size (X inside)', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 6, 'max' => 40, 'step' => 1 ) ),
+				'default'    => array( 'size' => 14, 'unit' => 'px' ),
+				'condition'  => array( 'show_clear_btn' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-icon-size: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'clear_radius',
+			array(
+				'label'      => __( 'Border radius', 'zymarg-algolia' ),
+				'description'=> __( 'Drag to 0 for a perfect square, drag high for a circle.', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px', '%' ),
+				'range'      => array(
+					'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ),
+					'%'  => array( 'min' => 0, 'max' => 50, 'step' => 1 ),
+				),
+				'default'    => array( 'size' => 50, 'unit' => '%' ),
+				'condition'  => array( 'show_clear_btn' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-radius: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'clear_gap',
+			array(
+				'label'      => __( 'Space between X and input text', 'zymarg-algolia' ),
+				'description'=> __( 'Margin between the X button and the typed text inside the input.', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+				'default'    => array( 'size' => 0, 'unit' => 'px' ),
+				'condition'  => array( 'show_clear_btn' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-gap: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'clear_edge',
+			array(
+				'label'      => __( 'Distance from edge', 'zymarg-algolia' ),
+				'description'=> __( 'Extra margin between the X and the right (or left) edge of the bar.', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+				'default'    => array( 'size' => 0, 'unit' => 'px' ),
+				'condition'  => array( 'show_clear_btn' => 'yes' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-edge: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'clear_bg',
+			array(
+				'label'     => __( 'Button background', 'zymarg-algolia' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_clear_btn' => 'yes' ),
+				'selectors' => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-bg: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'clear_color',
+			array(
+				'label'     => __( 'Icon color', 'zymarg-algolia' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_clear_btn' => 'yes' ),
+				'selectors' => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'clear_bg_hover',
+			array(
+				'label'     => __( 'Button background (hover)', 'zymarg-algolia' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_clear_btn' => 'yes' ),
+				'selectors' => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-bg-hover: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'clear_color_hover',
+			array(
+				'label'     => __( 'Icon color (hover)', 'zymarg-algolia' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'condition' => array( 'show_clear_btn' => 'yes' ),
+				'selectors' => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-clear-color-hover: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		/* ============================================================ */
 		/* Style tab > Empty state.                                      */
 		/* ============================================================ */
 
@@ -665,13 +828,15 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 	protected function render() {
 		$settings    = $this->get_settings_for_display();
 		$placeholder = isset( $settings['placeholder'] ) ? trim( (string) $settings['placeholder'] ) : '';
-		$stretch     = ! empty( $settings['stretch'] )    && 'yes' === $settings['stretch'];
-		$full_bleed  = ! empty( $settings['full_bleed'] ) && 'yes' === $settings['full_bleed'];
+		$stretch     = ! empty( $settings['stretch'] ) && 'yes' === $settings['stretch'];
 		// Default = ON. So treat anything other than explicit empty string as "show".
 		$show_dd     = ! isset( $settings['show_dropdown'] ) || 'yes' === $settings['show_dropdown'];
 		$no_dropdown = ! $show_dd;
 		$show_empty  = ! isset( $settings['show_empty_message'] ) || 'yes' === $settings['show_empty_message'];
 		$no_empty    = ! $show_empty;
+		$show_clear  = ! isset( $settings['show_clear_btn'] ) || 'yes' === $settings['show_clear_btn'];
+		$no_clear    = ! $show_clear;
+		$clear_left  = ! empty( $settings['clear_position'] ) && 'left' === $settings['clear_position'];
 
 		if ( '' !== $placeholder ) {
 			add_filter(
@@ -684,9 +849,10 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 
 		echo Zymarg_Algolia_Frontend::render_html( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			'stretch'    => $stretch,
-			'fullBleed'  => $full_bleed,
 			'noDropdown' => $no_dropdown,
 			'noEmpty'    => $no_empty,
+			'noClear'    => $no_clear,
+			'clearLeft'  => $clear_left,
 		) );
 	}
 }

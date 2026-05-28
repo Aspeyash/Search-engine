@@ -68,9 +68,10 @@
 			align:              { type: 'string' },
 
 			stretch:            { type: 'boolean', default: false },
-			fullBleed:          { type: 'boolean', default: false },
 			showDropdown:       { type: 'boolean', default: true },
 			showEmpty:          { type: 'boolean', default: true },
+			showClear:          { type: 'boolean', default: true },
+			clearLeft:          { type: 'boolean', default: false },
 			maxWidth:           { type: 'number' },
 			inputHeight:        { type: 'number' },
 			fontSize:           { type: 'number' },
@@ -88,6 +89,12 @@
 
 			emptyTextSize:      { type: 'number' },
 			emptyBtnSize:       { type: 'number' },
+
+			clearSize:          { type: 'number' },
+			clearIconSize:      { type: 'number' },
+			clearRadius:        { type: 'number' },
+			clearGap:           { type: 'number' },
+			clearEdge:          { type: 'number' },
 
 			textColor:          { type: 'string' },
 			placeholderColor:   { type: 'string' },
@@ -142,14 +149,20 @@
 						onChange: function (v) { setAtts({ showEmpty: !!v }); }
 					}) : null,
 					ToggleControl ? el(ToggleControl, {
-						label:    __('Full screen width (break out of parent)', 'zymarg-algolia'),
-						help:     __('Spans the entire viewport regardless of parent container — use this when the parent column has a max-width that\'s too narrow.', 'zymarg-algolia'),
-						checked:  !!atts.fullBleed,
-						onChange: function (v) { setAtts({ fullBleed: !!v }); }
+						label:    __('Show clear (×) button', 'zymarg-algolia'),
+						help:     __('Turn OFF to never display the X clear button. Customize size / position / colors in the "Clear button" panel below.', 'zymarg-algolia'),
+						checked:  atts.showClear !== false,
+						onChange: function (v) { setAtts({ showClear: !!v }); }
+					}) : null,
+					ToggleControl ? el(ToggleControl, {
+						label:    __('Place X on the left side', 'zymarg-algolia'),
+						help:     __('Move the clear button to the left of the input instead of the default right side.', 'zymarg-algolia'),
+						checked:  !!atts.clearLeft,
+						onChange: function (v) { setAtts({ clearLeft: !!v }); }
 					}) : null,
 					ToggleControl ? el(ToggleControl, {
 						label:    __('Stretch to full container width', 'zymarg-algolia'),
-						help:     __('Fills 100% of the immediate parent. Ignored if "Full screen width" is also ON.', 'zymarg-algolia'),
+						help:     __('Fills 100% of the immediate parent.', 'zymarg-algolia'),
 						checked:  !!atts.stretch,
 						onChange: function (v) { setAtts({ stretch: !!v }); }
 					}) : null
@@ -193,6 +206,21 @@
 					range(__('Button text size (px)',  'zymarg-algolia'), 'emptyBtnSize',       10,   32,  14, 1)
 				);
 
+				var clearPanel = el(
+					PanelBody,
+					{ title: __('Clear button (×)', 'zymarg-algolia'), initialOpen: false },
+					range(__('Button size (px)',     'zymarg-algolia'), 'clearSize',     12, 70, 26, 1,
+						__('Width and height of the round button. Small to big.', 'zymarg-algolia')),
+					range(__('Icon size (px)',       'zymarg-algolia'), 'clearIconSize',  6, 40, 14, 1,
+						__('Size of the X inside the button.', 'zymarg-algolia')),
+					range(__('Border radius (px)',   'zymarg-algolia'), 'clearRadius',    0, 40, 13, 1,
+						__('Drag low for a square, high for a circle.', 'zymarg-algolia')),
+					range(__('Space from input (px)','zymarg-algolia'), 'clearGap',       0, 40,  0, 1,
+						__('Margin between the X button and the typed text.', 'zymarg-algolia')),
+					range(__('Distance from edge (px)','zymarg-algolia'), 'clearEdge',    0, 40,  0, 1,
+						__('Extra margin between the X and the bar edge.', 'zymarg-algolia'))
+				);
+
 				var colorsPanel = PanelColorSettings ? el(PanelColorSettings, {
 					title: __('Colors', 'zymarg-algolia'),
 					initialOpen: false,
@@ -214,6 +242,7 @@
 					inputPanel,
 					dropdownPanel,
 					emptyPanel,
+					clearPanel,
 					colorsPanel
 				);
 			}

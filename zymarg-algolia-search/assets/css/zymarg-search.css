@@ -66,6 +66,17 @@
 	--zymarg-hit-meta-size:    12px;
 	--zymarg-hit-price-color:  var(--zymarg-purple);
 
+	/* ---------- Clear button (×) ---------- */
+	--zymarg-clear-size:        26px;
+	--zymarg-clear-icon-size:   14px;
+	--zymarg-clear-radius:      50%;
+	--zymarg-clear-gap:         0px;     /* margin between the X and the input text */
+	--zymarg-clear-edge:        0px;     /* extra margin between the X and the wrap edge */
+	--zymarg-clear-bg:          var(--zymarg-purple-50);
+	--zymarg-clear-color:       var(--zymarg-purple);
+	--zymarg-clear-bg-hover:    var(--zymarg-purple);
+	--zymarg-clear-color-hover: #ffffff;
+
 	/* ---------- Empty state ---------- */
 	--zymarg-empty-text-color: var(--zymarg-text);
 	--zymarg-empty-text-size:  14px;
@@ -92,15 +103,19 @@
 	max-width: 100%;
 }
 
-/* Full-bleed modifier — break out of any parent container and span the
-   entire viewport width using the negative-margin / 100vw technique.
-   Works inside Elementor sections / columns regardless of the section's
-   content-width setting (Default / Boxed / Full Width). */
-.zymarg-algolia-wrapper.zymarg-fullbleed {
-	width: 100vw;
-	max-width: 100vw !important;
-	margin-left: calc(50% - 50vw);
-	margin-right: calc(50% - 50vw);
+/* No-clear modifier — "Show clear button" toggle is OFF. */
+.zymarg-algolia-wrapper.zymarg-no-clear .zymarg-algolia-clear,
+.zymarg-no-clear .zymarg-algolia-clear {
+	display: none !important;
+}
+
+/* Clear-left modifier — X button appears on the LEFT side of the input
+   (before the search icon) instead of the default right side. */
+.zymarg-algolia-wrapper.zymarg-clear-left .zymarg-algolia-clear,
+.zymarg-clear-left .zymarg-algolia-clear {
+	order: -1;
+	margin-left: var(--zymarg-clear-edge);
+	margin-right: var(--zymarg-clear-gap);
 }
 
 /* No-dropdown modifier — the "Show results dropdown" toggle in the
@@ -239,19 +254,26 @@ input.zymarg-algolia-input[type="search"] {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 26px;
-	height: 26px;
-	border-radius: 50%;
+	width: var(--zymarg-clear-size);
+	height: var(--zymarg-clear-size);
+	border-radius: var(--zymarg-clear-radius);
 	border: 0;
-	background: var(--zymarg-purple-50);
-	color: var(--zymarg-purple);
+	background: var(--zymarg-clear-bg);
+	color: var(--zymarg-clear-color);
 	cursor: pointer;
 	flex-shrink: 0;
 	padding: 0;
+	margin-left: var(--zymarg-clear-gap);   /* space from input text */
+	margin-right: var(--zymarg-clear-edge); /* space to wrap right edge */
+	transition: background .15s ease, color .15s ease;
 }
 .zymarg-algolia-clear:hover {
-	background: var(--zymarg-purple);
-	color: #fff;
+	background: var(--zymarg-clear-bg-hover);
+	color: var(--zymarg-clear-color-hover);
+}
+.zymarg-algolia-clear svg {
+	width: var(--zymarg-clear-icon-size);
+	height: var(--zymarg-clear-icon-size);
 }
 
 /* ---------- Dropdown ---------- */

@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,22 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.10 =
+* **Removed:** "Full screen width (break out of parent)" toggle. The control + CSS class + render handling are gone everywhere (Elementor, Gutenberg, classic widget).
+* **New:** Full "Clear button (×)" customization section. In Elementor (Style tab) and Gutenberg block (sidebar):
+  * Show clear button toggle (default ON)
+  * Position: Right / Left (default Right)
+  * Button size slider (12–70 px) — small to big
+  * Icon size slider (6–40 px) — the X inside the button
+  * Border radius slider (0 → 50% — square to circle)
+  * Space between X and input text (0–40 px)
+  * Distance from edge (0–40 px)
+  * Background color (default + hover)
+  * Icon color (default + hover)
+* **New CSS variables:** `--zymarg-clear-size`, `--zymarg-clear-icon-size`, `--zymarg-clear-radius`, `--zymarg-clear-gap`, `--zymarg-clear-edge`, `--zymarg-clear-bg`, `--zymarg-clear-color`, `--zymarg-clear-bg-hover`, `--zymarg-clear-color-hover`.
+* **New CSS modifiers:** `.zymarg-no-clear` (hide button) and `.zymarg-clear-left` (move to left side).
+* **HTML change:** the SVG inside the clear button no longer has hard-coded `width="14" height="14"` — sizing is purely CSS-controlled via `--zymarg-clear-icon-size` so the icon size slider actually takes effect.
 
 = 1.0.9 =
 * **Fix:** Input-field controls (Text size / Text weight / Vertical text padding / Text line height) now actually apply on the page. The previous version had the right CSS variables but Astra / Elementor's global `input[type="search"]` rules were silently overriding them due to equal-specificity cascade order. v1.0.9 uses higher-specificity selectors plus `!important` for these critical user-controlled style props so theme CSS can no longer beat them.
