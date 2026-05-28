@@ -230,14 +230,14 @@ class Zymarg_Algolia_Settings {
 				</a>
 			</p>
 
-			<h2 class="title">How to use</h2>
+			<h2 class="title">How to add the search bar</h2>
+			<p>Pick whichever method matches the page builder you use. <strong>No shortcode required</strong> — that's only kept for backwards compatibility.</p>
 			<ol>
-				<li>Save credentials above.</li>
-				<li>Click <em>Verify connection</em>, then <em>Reindex everything now</em>.</li>
-				<li>Add the search bar to your header in Elementor with the shortcode
-					<code>[zymarg_algolia_search]</code> or place the widget block.</li>
-				<li>It also auto-replaces the WooCommerce <code>[wcsearch]</code>-style search if you
-					prefer to drop the shortcode into your Astra header.</li>
+				<li>First, save credentials above, click <em>Verify connection</em>, then <em>Reindex everything now</em>.</li>
+				<li><strong>Elementor (recommended for Astra header):</strong> open your header template, search the panel for <em>"ZYMARG Search"</em> (under the <em>ZYMARG</em> category), and drag it into the header. The search bar shows live in the editor — no need to publish to see it.</li>
+				<li><strong>Gutenberg / Site Editor:</strong> click the <em>+</em> inserter, search <em>"ZYMARG Search"</em>, click to drop it in. Use the sidebar to set a custom placeholder.</li>
+				<li><strong>Appearance &rarr; Widgets:</strong> drop the <em>"ZYMARG Search"</em> widget into any sidebar / header widget zone (Astra theme widget areas, footer columns, etc).</li>
+				<li><em>(Optional)</em> Legacy: the shortcode <code>[zymarg_algolia_search]</code> still works anywhere shortcodes are accepted.</li>
 			</ol>
 		</div>
 		<?php

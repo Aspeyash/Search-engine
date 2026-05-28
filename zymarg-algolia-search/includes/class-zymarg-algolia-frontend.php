@@ -1,6 +1,10 @@
 <?php
 /**
- * Frontend: enqueue Algolia InstantSearch.js + render search bar markup.
+ * Frontend: register/enqueue search assets + render search bar HTML.
+ *
+ * v1.0.6+: NO external library. The search script talks to Algolia's REST
+ * API directly via window.fetch(). v1.0.7: localize now ships the plugin
+ * version + a `stretch` flag to support unlimited bar width.
  *
  * @package ZymargAlgolia
  */
@@ -14,70 +18,49 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Zymarg_Algolia_Frontend {
 
+	const SCRIPT_HANDLE = 'zymarg-algolia-search';
+	const STYLE_HANDLE  = 'zymarg-algolia-search';
+
 	public function __construct() {
+		add_action( 'init', array( $this, 'register_assets' ), 5 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
-		// Optional: hook into Astra header to auto-render. Disabled by default; user uses shortcode.
 	}
 
-	/**
-	 * Should we load assets on this page?
-	 *
-	 * @return bool
-	 */
 	protected function should_load() {
-		// Always load for now; very small footprint. Can be filtered.
 		return (bool) apply_filters( 'zymarg_algolia_should_enqueue', true );
 	}
 
-	public function enqueue() {
-		if ( ! $this->should_load() ) {
-			return;
-		}
-		$app_id     = zymarg_algolia_get_setting( 'app_id' );
-		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
-
-		// Don't enqueue if not configured (avoid console errors).
-		if ( empty( $app_id ) || empty( $search_key ) ) {
+	/**
+	 * Register the search script + style.
+	 */
+	public function register_assets() {
+		if ( wp_script_is( self::SCRIPT_HANDLE, 'registered' ) ) {
 			return;
 		}
 
-		// Algolia search client (UMD).
 		wp_register_script(
-			'algoliasearch',
-			'https://cdn.jsdelivr.net/npm/algoliasearch@4.23.3/dist/algoliasearch-lite.umd.js',
-			array(),
-			'4.23.3',
-			true
-		);
-
-		// InstantSearch.js (UMD).
-		wp_register_script(
-			'instantsearch-js',
-			'https://cdn.jsdelivr.net/npm/instantsearch.js@4.68.1/dist/instantsearch.production.min.js',
-			array( 'algoliasearch' ),
-			'4.68.1',
-			true
-		);
-
-		wp_register_script(
-			'zymarg-algolia-search',
+			self::SCRIPT_HANDLE,
 			ZYMARG_ALGOLIA_URL . 'assets/js/zymarg-search.js',
-			array( 'instantsearch-js' ),
+			array(),
 			ZYMARG_ALGOLIA_VERSION,
 			true
 		);
 
 		wp_register_style(
-			'zymarg-algolia-search',
+			self::STYLE_HANDLE,
 			ZYMARG_ALGOLIA_URL . 'assets/css/zymarg-search.css',
 			array(),
 			ZYMARG_ALGOLIA_VERSION
 		);
 
+		$app_id     = zymarg_algolia_get_setting( 'app_id' );
+		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
+
 		wp_localize_script(
-			'zymarg-algolia-search',
+			self::SCRIPT_HANDLE,
 			'ZymargAlgolia',
 			array(
+				'version'       => ZYMARG_ALGOLIA_VERSION,
 				'appId'         => $app_id,
 				'searchKey'     => $search_key,
 				'indexProducts' => zymarg_algolia_index_name( 'products' ),
@@ -94,23 +77,55 @@ class Zymarg_Algolia_Frontend {
 					'by'         => __( 'by', 'zymarg-algolia' ),
 					'viewAll'    => __( 'See all results', 'zymarg-algolia' ),
 				),
-				'currencySym'   => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol() ) : '$',
+				'currencySym'   => function_exists( 'get_woocommerce_currency_symbol' )
+					? html_entity_decode( get_woocommerce_currency_symbol() )
+					: '$',
 			)
 		);
+	}
 
-		wp_enqueue_style( 'zymarg-algolia-search' );
-		wp_enqueue_script( 'zymarg-algolia-search' );
+	public function enqueue() {
+		if ( ! $this->should_load() ) {
+			return;
+		}
+		$this->register_assets();
+
+		$app_id     = zymarg_algolia_get_setting( 'app_id' );
+		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
+
+		if ( empty( $app_id ) || empty( $search_key ) ) {
+			return;
+		}
+
+		wp_enqueue_style( self::STYLE_HANDLE );
+		wp_enqueue_script( self::SCRIPT_HANDLE );
 	}
 
 	/**
-	 * Render the search bar HTML. Used by shortcode.
+	 * Render the search bar HTML. Used by shortcode, Gutenberg block,
+	 * classic widget and the Elementor widget.
 	 *
+	 * @param array $args Optional. Supported keys:
+	 *   - 'stretch'    (bool) — drop max-width so the bar fills its parent.
+	 *   - 'fullBleed'  (bool) — break out of parent + span the entire viewport.
+	 *   - 'noDropdown' (bool) — hide the live results dropdown entirely.
 	 * @return string
 	 */
-	public static function render_html() {
+	public static function render_html( $args = array() ) {
+		$args        = is_array( $args ) ? $args : array();
+		$stretch     = ! empty( $args['stretch'] );
+		$full_bleed  = ! empty( $args['fullBleed'] );
+		$no_dropdown = ! empty( $args['noDropdown'] );
+
+		$classes = array( 'zymarg-algolia-wrapper' );
+		if ( $stretch )     $classes[] = 'zymarg-stretch';
+		if ( $full_bleed )  $classes[] = 'zymarg-fullbleed';
+		if ( $no_dropdown ) $classes[] = 'zymarg-no-dropdown';
+		$wrap_cls = implode( ' ', $classes );
+
 		ob_start();
 		?>
-		<div class="zymarg-algolia-wrapper" data-zymarg-search>
+		<div class="<?php echo esc_attr( $wrap_cls ); ?>" data-zymarg-search>
 			<div class="zymarg-algolia-orb zymarg-algolia-orb-1" aria-hidden="true"></div>
 			<div class="zymarg-algolia-orb zymarg-algolia-orb-2" aria-hidden="true"></div>
 
