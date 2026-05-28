@@ -1,23 +1,73 @@
 /*!
- * ZYMARG Algolia Search - Frontend instant search
+ * ZYMARG Algolia Search - Frontend instant search.
+ * v1.0.5
+ *
  * Renders a multi-index dropdown (products / vendors / categories) using
- * Algolia's lite client + InstantSearch.js. No page reload.
+ * Algolia's lite client. No InstantSearch.js dependency. No page reload
+ * while typing — the dropdown opens as soon as the user types one character.
  */
 (function () {
 	'use strict';
 
-	if (typeof window.algoliasearch !== 'function' || typeof window.instantsearch !== 'function') {
-		// Library not loaded yet — try after window load.
-		window.addEventListener('load', boot);
-		return;
-	}
-	boot();
+	var BOOT_TIMEOUT_MS = 8000;
 
-	function boot() {
-		var cfg = window.ZymargAlgolia;
-		if (!cfg || !cfg.appId || !cfg.searchKey) {
-			return;
+	/* ---------------------------------------------------------------- */
+	/* Boot                                                             */
+	/* ---------------------------------------------------------------- */
+
+	function ready(fn) {
+		if (document.readyState !== 'loading') {
+			fn();
+		} else {
+			document.addEventListener('DOMContentLoaded', fn);
 		}
+	}
+
+	function waitForLib(maxMs, cb) {
+		var start = Date.now();
+		(function poll() {
+			if (typeof window.algoliasearch === 'function') {
+				cb(true);
+				return;
+			}
+			if (Date.now() - start > maxMs) {
+				cb(false);
+				return;
+			}
+			setTimeout(poll, 80);
+		})();
+	}
+
+	ready(function () {
+		waitForLib(BOOT_TIMEOUT_MS, function (ok) {
+			if (!ok) {
+				if (window.console && window.console.warn) {
+					console.warn('[ZymargAlgolia] algoliasearch library failed to load.');
+				}
+				return;
+			}
+			scan();
+
+			// Re-scan when wrappers are dynamically added (block editor preview,
+			// Elementor preview iframe, AJAX-loaded headers, etc).
+			if (window.MutationObserver) {
+				var t;
+				var rescan = function () {
+					clearTimeout(t);
+					t = setTimeout(scan, 120);
+				};
+				new MutationObserver(rescan).observe(
+					document.documentElement,
+					{ childList: true, subtree: true }
+				);
+			}
+		});
+	});
+
+	function scan() {
+		var cfg = window.ZymargAlgolia;
+		if (!cfg || !cfg.appId || !cfg.searchKey) return;
+
 		var wrappers = document.querySelectorAll('[data-zymarg-search]');
 		if (!wrappers.length) return;
 
@@ -27,6 +77,10 @@
 			initWrapper(wrapper, cfg);
 		});
 	}
+
+	/* ---------------------------------------------------------------- */
+	/* Helpers                                                          */
+	/* ---------------------------------------------------------------- */
 
 	function escapeHtml(str) {
 		if (str == null) return '';
@@ -45,7 +99,7 @@
 			hit._highlightResult[attr] &&
 			typeof hit._highlightResult[attr].value === 'string'
 		) {
-			// Algolia already wraps in <mark> via highlightPreTag/PostTag.
+			// Algolia already wraps matches in <mark> via highlightPreTag/PostTag.
 			return hit._highlightResult[attr].value;
 		}
 		return escapeHtml(hit && hit[attr] ? hit[attr] : '');
@@ -60,20 +114,24 @@
 		};
 	}
 
+	/* ---------------------------------------------------------------- */
+	/* Wrapper init                                                     */
+	/* ---------------------------------------------------------------- */
+
 	function initWrapper(wrapper, cfg) {
-		var input = wrapper.querySelector('.zymarg-algolia-input');
-		var dropdown = wrapper.querySelector('.zymarg-algolia-dropdown');
+		var input      = wrapper.querySelector('.zymarg-algolia-input');
+		var dropdown   = wrapper.querySelector('.zymarg-algolia-dropdown');
 		var resultsBox = wrapper.querySelector('.zymarg-algolia-results');
-		var emptyBox = wrapper.querySelector('.zymarg-algolia-empty');
+		var emptyBox   = wrapper.querySelector('.zymarg-algolia-empty');
 		var loadingBox = wrapper.querySelector('.zymarg-algolia-loading');
-		var clearBtn = wrapper.querySelector('.zymarg-algolia-clear');
-		var form = wrapper.querySelector('.zymarg-algolia-form');
+		var clearBtn   = wrapper.querySelector('.zymarg-algolia-clear');
+		var form       = wrapper.querySelector('.zymarg-algolia-form');
 
-		if (!input || !dropdown) return;
+		if (!input || !dropdown || !resultsBox || !emptyBox) return;
 
-		// Empty state content.
+		// Empty-state CTA from settings.
 		var emptyText = emptyBox.querySelector('.zymarg-algolia-empty-text');
-		var emptyBtn = emptyBox.querySelector('.zymarg-algolia-empty-btn');
+		var emptyBtn  = emptyBox.querySelector('.zymarg-algolia-empty-btn');
 		if (emptyText) emptyText.textContent = cfg.noResultsText || "Couldn't find what you're looking for?";
 		if (emptyBtn) {
 			emptyBtn.textContent = cfg.requestBtn || 'Request Here';
@@ -81,11 +139,12 @@
 		}
 
 		var client = window.algoliasearch(cfg.appId, cfg.searchKey);
+		var lastReqId = 0;
 
-		var openDropdown = function () { dropdown.hidden = false; };
+		var openDropdown  = function () { dropdown.hidden = false; };
 		var closeDropdown = function () {
-			dropdown.hidden = true;
-			emptyBox.hidden = true;
+			dropdown.hidden   = true;
+			emptyBox.hidden   = true;
 			loadingBox.hidden = true;
 		};
 		var showLoading = function () { loadingBox.hidden = false; };
@@ -101,6 +160,7 @@
 			emptyBox.hidden = true;
 			var html = '';
 
+			// Categories first — quickest to scan visually.
 			if (catHits && catHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.categories) + '</h4>';
@@ -118,6 +178,7 @@
 				html += '</div>';
 			}
 
+			// Products.
 			if (productHits && productHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.products) + '</h4>';
@@ -144,6 +205,7 @@
 				html += '</div>';
 			}
 
+			// Vendors.
 			if (vendorHits && vendorHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.vendors) + '</h4>';
@@ -166,11 +228,11 @@
 				html += '</div>';
 			}
 
-			// "See all" link -> standard search page (?s=) so SEO crawl works.
+			// "See all" link -> standard WP search page (?s=) so SEO crawl works.
 			if (query) {
-				var url = (form && form.getAttribute('action')) || '/';
-				url += (url.indexOf('?') >= 0 ? '&' : '?') + 's=' + encodeURIComponent(query) +
-					'&post_type=product';
+				var url = (form && form.getAttribute('action')) || (window.location.origin + '/');
+				url += (url.indexOf('?') >= 0 ? '&' : '?') +
+					's=' + encodeURIComponent(query) + '&post_type=product';
 				html += '<a class="zymarg-algolia-viewall" href="' + escapeHtml(url) + '">' +
 					escapeHtml(cfg.i18n.viewAll) + ' &rarr;</a>';
 			}
@@ -193,31 +255,40 @@
 				{ indexName: cfg.indexCats,     params: { query: query, hitsPerPage: 3 } }
 			];
 
+			var reqId = ++lastReqId;
+
 			client.search(requests).then(function (res) {
+				// Race-protect: only render the latest query's results.
+				if (reqId !== lastReqId) return;
+
 				hideLoading();
-				var p = res.results[0] || {};
-				var v = res.results[1] || {};
-				var c = res.results[2] || {};
+				var p = (res && res.results && res.results[0]) || {};
+				var v = (res && res.results && res.results[1]) || {};
+				var c = (res && res.results && res.results[2]) || {};
 				var pHits = p.hits || [];
 				var vHits = v.hits || [];
 				var cHits = c.hits || [];
+
 				if (!pHits.length && !vHits.length && !cHits.length) {
 					renderEmpty();
 					return;
 				}
 				renderResults(pHits, vHits, cHits, query);
 			}).catch(function (err) {
+				if (reqId !== lastReqId) return;
 				hideLoading();
 				if (window.console) console.error('[ZymargAlgolia]', err);
-				closeDropdown();
+				// Still show the friendly "request" CTA so the user has somewhere to go.
+				renderEmpty();
 			});
 		};
 
+		// Type -> instant search (debounced 100ms).
 		var debounced = debounce(function () {
 			var q = (input.value || '').trim();
 			if (clearBtn) clearBtn.hidden = !q;
 			search(q);
-		}, 120);
+		}, 100);
 
 		input.addEventListener('input', debounced);
 		input.addEventListener('focus', function () {
@@ -229,12 +300,11 @@
 		if (form) {
 			form.addEventListener('submit', function () {
 				closeDropdown();
-				// Append post_type=product so WC search page is hit.
 				var hidden = form.querySelector('input[name="post_type"]');
 				if (!hidden) {
 					hidden = document.createElement('input');
-					hidden.type = 'hidden';
-					hidden.name = 'post_type';
+					hidden.type  = 'hidden';
+					hidden.name  = 'post_type';
 					hidden.value = 'product';
 					form.appendChild(hidden);
 				}
@@ -257,7 +327,7 @@
 
 		// Esc -> close.
 		input.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape') {
+			if (e.key === 'Escape' || e.keyCode === 27) {
 				closeDropdown();
 				input.blur();
 			}

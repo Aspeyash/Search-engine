@@ -1,6 +1,9 @@
 <?php
 /**
- * Frontend: enqueue Algolia InstantSearch.js + render search bar markup.
+ * Frontend: register/enqueue Algolia search-lite client + render search bar HTML.
+ *
+ * Assets are registered on `init` so the block editor (Gutenberg) and the
+ * Elementor editor preview can enqueue them too — not only the public site.
  *
  * @package ZymargAlgolia
  */
@@ -14,9 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Zymarg_Algolia_Frontend {
 
+	const SCRIPT_HANDLE = 'zymarg-algolia-search';
+	const STYLE_HANDLE  = 'zymarg-algolia-search';
+
 	public function __construct() {
+		// Register early so any context (frontend, block editor, Elementor preview) can enqueue.
+		add_action( 'init', array( $this, 'register_assets' ), 5 );
+		// Public-facing pages.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
-		// Optional: hook into Astra header to auto-render. Disabled by default; user uses shortcode.
 	}
 
 	/**
@@ -25,23 +33,20 @@ class Zymarg_Algolia_Frontend {
 	 * @return bool
 	 */
 	protected function should_load() {
-		// Always load for now; very small footprint. Can be filtered.
 		return (bool) apply_filters( 'zymarg_algolia_should_enqueue', true );
 	}
 
-	public function enqueue() {
-		if ( ! $this->should_load() ) {
-			return;
-		}
-		$app_id     = zymarg_algolia_get_setting( 'app_id' );
-		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
-
-		// Don't enqueue if not configured (avoid console errors).
-		if ( empty( $app_id ) || empty( $search_key ) ) {
+	/**
+	 * Register the Algolia search-lite client + our JS / CSS.
+	 *
+	 * Idempotent — safe to call multiple times.
+	 */
+	public function register_assets() {
+		if ( wp_script_is( self::SCRIPT_HANDLE, 'registered' ) ) {
 			return;
 		}
 
-		// Algolia search client (UMD).
+		// Algolia search-lite client (UMD). This is the ONLY library we need.
 		wp_register_script(
 			'algoliasearch',
 			'https://cdn.jsdelivr.net/npm/algoliasearch@4.23.3/dist/algoliasearch-lite.umd.js',
@@ -50,32 +55,26 @@ class Zymarg_Algolia_Frontend {
 			true
 		);
 
-		// InstantSearch.js (UMD).
 		wp_register_script(
-			'instantsearch-js',
-			'https://cdn.jsdelivr.net/npm/instantsearch.js@4.68.1/dist/instantsearch.production.min.js',
-			array( 'algoliasearch' ),
-			'4.68.1',
-			true
-		);
-
-		wp_register_script(
-			'zymarg-algolia-search',
+			self::SCRIPT_HANDLE,
 			ZYMARG_ALGOLIA_URL . 'assets/js/zymarg-search.js',
-			array( 'instantsearch-js' ),
+			array( 'algoliasearch' ),
 			ZYMARG_ALGOLIA_VERSION,
 			true
 		);
 
 		wp_register_style(
-			'zymarg-algolia-search',
+			self::STYLE_HANDLE,
 			ZYMARG_ALGOLIA_URL . 'assets/css/zymarg-search.css',
 			array(),
 			ZYMARG_ALGOLIA_VERSION
 		);
 
+		$app_id     = zymarg_algolia_get_setting( 'app_id' );
+		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
+
 		wp_localize_script(
-			'zymarg-algolia-search',
+			self::SCRIPT_HANDLE,
 			'ZymargAlgolia',
 			array(
 				'appId'         => $app_id,
@@ -94,16 +93,38 @@ class Zymarg_Algolia_Frontend {
 					'by'         => __( 'by', 'zymarg-algolia' ),
 					'viewAll'    => __( 'See all results', 'zymarg-algolia' ),
 				),
-				'currencySym'   => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol() ) : '$',
+				'currencySym'   => function_exists( 'get_woocommerce_currency_symbol' )
+					? html_entity_decode( get_woocommerce_currency_symbol() )
+					: '$',
 			)
 		);
-
-		wp_enqueue_style( 'zymarg-algolia-search' );
-		wp_enqueue_script( 'zymarg-algolia-search' );
 	}
 
 	/**
-	 * Render the search bar HTML. Used by shortcode.
+	 * Enqueue assets on public pages (when configured).
+	 */
+	public function enqueue() {
+		if ( ! $this->should_load() ) {
+			return;
+		}
+		// Make sure registration ran (e.g. when 'init' priority differs in some setups).
+		$this->register_assets();
+
+		$app_id     = zymarg_algolia_get_setting( 'app_id' );
+		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
+
+		// Don't enqueue if not configured (avoid console errors).
+		if ( empty( $app_id ) || empty( $search_key ) ) {
+			return;
+		}
+
+		wp_enqueue_style( self::STYLE_HANDLE );
+		wp_enqueue_script( self::SCRIPT_HANDLE );
+	}
+
+	/**
+	 * Render the search bar HTML. Used by shortcode, Gutenberg block,
+	 * classic widget and the Elementor widget.
 	 *
 	 * @return string
 	 */
