@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.11
+Stable tag: 1.0.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,17 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.12 =
+* **New:** Global "CTA Mode" setting in Settings -> ZYMARG Algolia with three options:
+  * **Show in dropdown** — current behavior; the "Couldn't find / Request Here" CTA appears inside the search dropdown when zero results match.
+  * **Show on the search results page** — auto-injects a banner below the WP search results page (`/?s=keyword`) that **always shows** regardless of whether any products matched. The dropdown CTA is automatically hidden in this mode so the user only sees one CTA at a time.
+  * **Hidden everywhere** — completely disabled.
+* **New:** Banner styling controls (only used in "search-results-page" mode): max width (px), vertical / horizontal padding (px), margin top / bottom (px), border radius (px), alignment (left / center / right), message text size (px), button text size (px), banner background, message text color, button background color, button text color. All edited in the Settings page with number inputs + native color pickers.
+* **New:** `[zymarg_search_cta]` shortcode — manually place the banner anywhere (useful for Elementor Pro custom search templates / Astra Theme Builder pages where the auto-inject hooks can't reach).
+* **New CSS variables:** `--zymarg-cta-max-width`, `--zymarg-cta-padding-y`, `--zymarg-cta-padding-x`, `--zymarg-cta-margin-top`, `--zymarg-cta-margin-bottom`, `--zymarg-cta-radius`, `--zymarg-cta-text-size`, `--zymarg-cta-btn-size`, `--zymarg-cta-bg`, `--zymarg-cta-text`, `--zymarg-cta-btn-bg`, `--zymarg-cta-btn-color`, `--zymarg-cta-align`. Power users can override these via custom CSS.
+* **Auto-inject mechanism:** the banner attaches to two hooks (`loop_end` after the main search loop, `astra_content_bottom` as Astra-specific fallback). A render flag prevents double output if both fire.
+* **Backward compat:** existing installs default to `cta_mode = 'dropdown'`, so behavior is unchanged until the user opts into the new mode.
 
 = 1.0.11 =
 * **New:** Section-level toggles in Elementor + Gutenberg block + classic widget. Three independent on/off switches: "Show Products section", "Show Categories section", "Show Vendors section". Defaults: Products + Categories ON, Vendors OFF.

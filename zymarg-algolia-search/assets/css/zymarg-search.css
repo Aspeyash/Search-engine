@@ -469,8 +469,79 @@ input.zymarg-algolia-input[type="search"] {
 	transform: translateY(0);
 }
 
-/* ---------- Mobile ---------- */
+/* ---------- Search-results-page CTA banner (1.0.12+) ----------
+   Auto-injected below the WP search results when the global CTA mode
+   is set to "search_page". All sizes / colors are CSS variables, set
+   per-instance via inline style="" by Zymarg_Algolia_Search_CTA. */
 
+.zymarg-algolia-cta-banner {
+	--zymarg-cta-max-width:     800px;
+	--zymarg-cta-padding-y:     32px;
+	--zymarg-cta-padding-x:     32px;
+	--zymarg-cta-margin-top:    40px;
+	--zymarg-cta-margin-bottom: 40px;
+	--zymarg-cta-radius:        14px;
+	--zymarg-cta-text-size:     18px;
+	--zymarg-cta-btn-size:      16px;
+	--zymarg-cta-bg:            #ffffff;
+	--zymarg-cta-text:          #1a1a1a;
+	--zymarg-cta-btn-bg:        #7B3FE4;
+	--zymarg-cta-btn-color:     #ffffff;
+	--zymarg-cta-align:         center;
+
+	display: block;
+	box-sizing: border-box;
+	max-width: var(--zymarg-cta-max-width);
+	margin: var(--zymarg-cta-margin-top) auto var(--zymarg-cta-margin-bottom);
+	padding: var(--zymarg-cta-padding-y) var(--zymarg-cta-padding-x);
+	background: var(--zymarg-cta-bg);
+	color: var(--zymarg-cta-text);
+	border: 1px solid rgba(123, 63, 228, 0.10);
+	border-radius: var(--zymarg-cta-radius);
+	box-shadow: 0 4px 18px rgba(123, 63, 228, 0.08);
+	text-align: var(--zymarg-cta-align);
+	font-family: inherit;
+	position: relative;
+}
+
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-text {
+	margin: 0 0 18px;
+	font-size: var(--zymarg-cta-text-size);
+	color: var(--zymarg-cta-text);
+	line-height: 1.4;
+	font-weight: 500;
+}
+
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-btn {
+	display: inline-block;
+	background: var(--zymarg-cta-btn-bg);
+	color: var(--zymarg-cta-btn-color) !important;
+	padding: 12px 32px;
+	border-radius: 999px;
+	text-decoration: none;
+	font-weight: 600;
+	font-size: var(--zymarg-cta-btn-size);
+	line-height: 1.2;
+	transition: opacity .15s ease, transform .1s ease;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-btn:hover {
+	opacity: 0.92;
+	transform: translateY(-1px);
+}
+.zymarg-algolia-cta-banner .zymarg-algolia-cta-btn:active {
+	transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+	.zymarg-algolia-cta-banner {
+		max-width: 100%;
+		margin-left: 16px;
+		margin-right: 16px;
+	}
+}
+
+/* ---------- Mobile ---------- */
 @media (max-width: 640px) {
 	.zymarg-algolia-wrapper {
 		max-width: 100%;

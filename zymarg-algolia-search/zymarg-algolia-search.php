@@ -3,7 +3,7 @@
  * Plugin Name:       ZYMARG Algolia Search
  * Plugin URI:        https://github.com/Aspeyash/Search-engine-
  * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board. Drag-and-drop block + Elementor widget — no shortcode required.
- * Version:           1.0.11
+ * Version:           1.0.12
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '1.0.11' );
+define( 'ZYMARG_ALGOLIA_VERSION', '1.0.12' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );
@@ -46,6 +46,25 @@ function zymarg_algolia_default_settings() {
 		'enable_in_admin' => 1,
 		'no_results_text' => "Couldn't find what you're looking for?",
 		'request_btn'     => 'Request Here',
+
+		// CTA placement (1.0.12).
+		// 'dropdown'    : show inside the search dropdown when zero results match (default).
+		// 'search_page' : show as a banner below the WordPress search results page (always).
+		// 'hidden'      : completely disabled, nothing renders.
+		'cta_mode'          => 'dropdown',
+		'cta_max_width'     => 800,
+		'cta_padding_y'     => 32,
+		'cta_padding_x'     => 32,
+		'cta_margin_top'    => 40,
+		'cta_margin_bottom' => 40,
+		'cta_radius'        => 14,
+		'cta_text_size'     => 18,
+		'cta_btn_size'      => 16,
+		'cta_bg'            => '#ffffff',
+		'cta_text_color'    => '#1a1a1a',
+		'cta_btn_bg'        => '#7B3FE4',
+		'cta_btn_color'     => '#ffffff',
+		'cta_align'         => 'center',
 	);
 }
 
@@ -85,6 +104,7 @@ require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-settings.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-frontend.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-shortcode.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-block.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-search-cta.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-updater.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-dashboard.php';
 
@@ -125,6 +145,7 @@ function zymarg_algolia_boot() {
 	new Zymarg_Algolia_Frontend();
 	new Zymarg_Algolia_Shortcode(); // Backwards compatibility.
 	new Zymarg_Algolia_Block();     // Gutenberg block + classic widget + Elementor widget.
+	new Zymarg_Algolia_Search_CTA(); // Search-results-page CTA banner (1.0.12+).
 
 	// GitHub auto-updater (admin only).
 	if ( is_admin() ) {

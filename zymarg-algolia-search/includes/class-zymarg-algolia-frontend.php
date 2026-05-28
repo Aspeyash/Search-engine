@@ -129,6 +129,16 @@ class Zymarg_Algolia_Frontend {
 		$no_clear    = ! empty( $args['noClear'] );
 		$clear_left  = ! empty( $args['clearLeft'] );
 
+		// Honor the global "CTA Mode" setting (1.0.12+). When the user has
+		// chosen to show the CTA on the search results page (or hidden it
+		// everywhere), the dropdown empty-state CTA must be suppressed even
+		// if the per-widget toggle is ON — otherwise the user would see two
+		// CTAs at once.
+		$global_cta_mode = zymarg_algolia_get_setting( 'cta_mode', 'dropdown' );
+		if ( 'dropdown' !== $global_cta_mode ) {
+			$no_empty = true;
+		}
+
 		// Section visibility — defaults: products + categories ON, vendors OFF.
 		$show_products   = ! array_key_exists( 'showProducts', $args )   || ! empty( $args['showProducts'] );
 		$show_categories = ! array_key_exists( 'showCategories', $args ) || ! empty( $args['showCategories'] );
