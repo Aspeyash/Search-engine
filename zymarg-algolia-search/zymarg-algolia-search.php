@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       ZYMARG Algolia Search
  * Plugin URI:        https://github.com/Aspeyash/Search-engine-
- * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board.
- * Version:           1.0.4
+ * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board. Drag-and-drop block + Elementor widget — no shortcode required.
+ * Version:           1.0.6
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '1.0.4' );
+define( 'ZYMARG_ALGOLIA_VERSION', '1.0.6' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );
@@ -84,6 +84,7 @@ require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-categories.php
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-settings.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-frontend.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-shortcode.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-block.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-updater.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-dashboard.php';
 
@@ -120,9 +121,10 @@ function zymarg_algolia_boot() {
 	new Zymarg_Algolia_Vendors();
 	new Zymarg_Algolia_Categories();
 
-	// Frontend.
+	// Frontend + placement options.
 	new Zymarg_Algolia_Frontend();
-	new Zymarg_Algolia_Shortcode();
+	new Zymarg_Algolia_Shortcode(); // Backwards compatibility.
+	new Zymarg_Algolia_Block();     // Gutenberg block + classic widget + Elementor widget.
 
 	// GitHub auto-updater (admin only).
 	if ( is_admin() ) {
