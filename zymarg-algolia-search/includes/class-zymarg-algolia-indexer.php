@@ -101,7 +101,12 @@ abstract class Zymarg_Algolia_Indexer {
 			// Skipped — also remove from index in case it was there.
 			return $this->delete_one( $object_id );
 		}
-		return $this->client->save_object( $this->get_index_name(), $record );
+		$result = $this->client->save_object( $this->get_index_name(), $record );
+		/**
+		 * Fires after a single object is indexed.
+		 */
+		do_action( 'zymarg_algolia_indexed_single', $object_id, $this->slug() );
+		return $result;
 	}
 
 	/**
