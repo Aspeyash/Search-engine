@@ -1,19 +1,88 @@
 /*!
  * ZYMARG Algolia Search - Frontend instant search.
- * v1.0.6
+ * v1.0.7
  *
  * Talks to the Algolia REST API directly via window.fetch(). No external
- * UMD library is loaded — this guarantees the search bar boots even if
- * jsDelivr (or any CDN) is blocked, slow, or cached as a stale failure
- * by an ad-blocker, WAF, or restrictive CSP.
+ * UMD library, no CDN dependency. Multi-host failover (-dsn -> -1 -> -2
+ * -> -3). Race-protected requests, MutationObserver re-scan, and a clean
+ * fallback to the standard WP search page on submit.
  *
- * Multi-host failover (-dsn -> -1 -> -2 -> -3) so one DC outage never
- * breaks the search. Race-protected requests, MutationObserver re-scan
- * for block-editor / Elementor previews, and a clean fallback to the
- * standard WP search page on submit.
+ * v1.0.7 hardening:
+ *   - Leading semicolon + IIFE so script combiners cannot break the boot.
+ *   - Wrappers found via [data-zymarg-search] OR .zymarg-algolia-wrapper
+ *     (defends against HTML minifiers that strip data-* attributes).
+ *   - Multiple input event listeners (input, keyup, paste, compositionend)
+ *     so IME / paste / autofill all trigger the dropdown.
+ *   - Verbose console diagnostic logging — run zymargAlgoliaDebug() in
+ *     DevTools to see exactly where things stand.
+ *   - Retries config detection in case wp_localize_script was delayed by
+ *     a JS deferring/combining plugin.
  */
-(function () {
+;(function () {
 	'use strict';
+
+	var VERSION = '1.0.7';
+
+	/* ---------------------------------------------------------------- */
+	/* Diagnostic state. zymargAlgoliaDebug() reads this.                */
+	/* ---------------------------------------------------------------- */
+
+	var diag = {
+		version: VERSION,
+		fetchAvailable: typeof window.fetch === 'function',
+		mutationObserver: typeof window.MutationObserver === 'function',
+		configFound: false,
+		configValid: false,
+		wrappersFound: 0,
+		wrappersBooted: 0,
+		lastQuery: null,
+		lastResultCounts: null,
+		lastError: null
+	};
+
+	window.zymargAlgoliaDebug = function () {
+		// Update live counts each call so the user can see the truth right now.
+		var ws = document.querySelectorAll('[data-zymarg-search], .zymarg-algolia-wrapper');
+		diag.wrappersFound = ws.length;
+		diag.wrappersBooted = 0;
+		Array.prototype.forEach.call(ws, function (w) {
+			if (w.__zymargBooted) diag.wrappersBooted++;
+		});
+		diag.configFound = !!window.ZymargAlgolia;
+		diag.configValid = !!(window.ZymargAlgolia && window.ZymargAlgolia.appId && window.ZymargAlgolia.searchKey);
+		// Print a friendly summary AND return the object for inspection.
+		try {
+			console.group('[ZymargAlgolia] diagnostics');
+			console.log('version:           ', diag.version);
+			console.log('fetch available:   ', diag.fetchAvailable);
+			console.log('MutationObserver:  ', diag.mutationObserver);
+			console.log('config object:     ', window.ZymargAlgolia || '(missing!)');
+			console.log('config valid:      ', diag.configValid);
+			console.log('wrappers found:    ', diag.wrappersFound);
+			console.log('wrappers booted:   ', diag.wrappersBooted);
+			console.log('last query:        ', diag.lastQuery);
+			console.log('last result counts:', diag.lastResultCounts);
+			console.log('last error:        ', diag.lastError);
+			console.groupEnd();
+		} catch (e) { /* noop */ }
+		return diag;
+	};
+
+	function logInfo() {
+		if (window.console && window.console.info) {
+			try { console.info.apply(console, ['[ZymargAlgolia]'].concat([].slice.call(arguments))); } catch (e) {}
+		}
+	}
+	function logWarn() {
+		if (window.console && window.console.warn) {
+			try { console.warn.apply(console, ['[ZymargAlgolia]'].concat([].slice.call(arguments))); } catch (e) {}
+		}
+	}
+	function logError() {
+		if (window.console && window.console.error) {
+			try { console.error.apply(console, ['[ZymargAlgolia]'].concat([].slice.call(arguments))); } catch (e) {}
+		}
+	}
 
 	/* ---------------------------------------------------------------- */
 	/* Built-in Algolia REST client (no external dependency).            */
@@ -31,7 +100,6 @@
 	}
 
 	function createAlgoliaClient(appId, apiKey) {
-		// Algolia DSN + 3 fallback hosts — gives ~99.99% availability.
 		var hosts = [
 			appId + '-dsn.algolia.net',
 			appId + '-1.algolianet.com',
@@ -67,13 +135,8 @@
 						credentials: 'omit',
 						mode: 'cors'
 					}).then(function (res) {
-						if (res.ok) {
-							return res.json();
-						}
-						// 5xx -> try next host. 4xx -> surface the error.
-						if (res.status >= 500 && i < hosts.length) {
-							return attempt();
-						}
+						if (res.ok) return res.json();
+						if (res.status >= 500 && i < hosts.length) return attempt();
 						return res.json().catch(function () { return {}; }).then(function (j) {
 							var msg = (j && j.message) ? j.message : ('HTTP ' + res.status);
 							var err = new Error(msg);
@@ -81,10 +144,7 @@
 							throw err;
 						});
 					}).catch(function (err) {
-						// Network error -> try next host.
-						if (!err.status && i < hosts.length) {
-							return attempt();
-						}
+						if (!err.status && i < hosts.length) return attempt();
 						throw err;
 					});
 				}
@@ -105,18 +165,33 @@
 		}
 	}
 
+	function tryScanWithRetry(maxAttempts, intervalMs) {
+		var attempt = 0;
+		(function loop() {
+			scan();
+			attempt++;
+			diag.configFound = !!window.ZymargAlgolia;
+			diag.configValid = !!(window.ZymargAlgolia && window.ZymargAlgolia.appId && window.ZymargAlgolia.searchKey);
+			// Stop retrying once we've successfully booted at least one wrapper,
+			// or we've hit the max attempts.
+			if (diag.wrappersBooted > 0 || attempt >= maxAttempts) return;
+			setTimeout(loop, intervalMs);
+		})();
+	}
+
 	ready(function () {
 		if (typeof window.fetch !== 'function') {
-			if (window.console && window.console.warn) {
-				console.warn('[ZymargAlgolia] window.fetch is not available; instant search disabled. Submit will still go to the WP search page.');
-			}
+			logWarn('window.fetch is not available; instant search disabled. Submit will still go to the WP search page.');
 			return;
 		}
 
-		scan();
+		// First scan + a few retries spaced out, in case wp_localize_script
+		// was deferred by a script combiner / minifier and ZymargAlgolia
+		// isn't on window yet at DOMContentLoaded.
+		tryScanWithRetry(8, 250);
 
-		// Re-scan when new wrappers appear (block editor preview, Elementor
-		// preview iframe, AJAX-loaded headers, etc).
+		// Re-scan when wrappers are dynamically added (block editor preview,
+		// Elementor preview iframe, AJAX-loaded headers, etc).
 		if (window.MutationObserver) {
 			var t;
 			var rescan = function () {
@@ -129,24 +204,47 @@
 			);
 		}
 
-		// One-line console banner so the user can confirm v1.0.6 is loaded.
-		if (window.console && window.console.info) {
-			console.info('[ZymargAlgolia] v1.0.6 ready');
-		}
+		// One-line console banner so the user can confirm v1.0.7 is loaded.
+		// Kept short on purpose so it's easy to spot.
+		logInfo('v' + VERSION + ' ready. Run zymargAlgoliaDebug() for diagnostics.');
 	});
 
 	function scan() {
 		var cfg = window.ZymargAlgolia;
-		if (!cfg || !cfg.appId || !cfg.searchKey) return;
+		var wrappers = document.querySelectorAll('[data-zymarg-search], .zymarg-algolia-wrapper');
+		diag.wrappersFound = wrappers.length;
 
-		var wrappers = document.querySelectorAll('[data-zymarg-search]');
+		if (!cfg) {
+			if (!scan.__warnedNoCfg) {
+				logWarn('window.ZymargAlgolia is missing — wp_localize_script did not run, or a JS optimizer stripped it. Found ' + wrappers.length + ' search wrapper(s) but cannot init.');
+				scan.__warnedNoCfg = true;
+			}
+			return;
+		}
+		diag.configFound = true;
+		diag.configValid = !!(cfg.appId && cfg.searchKey);
+
+		if (!cfg.appId || !cfg.searchKey) {
+			if (!scan.__warnedBadCfg) {
+				logWarn('ZymargAlgolia config is missing appId or searchKey. Set them in Settings -> ZYMARG Algolia.');
+				scan.__warnedBadCfg = true;
+			}
+			return;
+		}
+
 		if (!wrappers.length) return;
 
+		var newlyBooted = 0;
 		Array.prototype.forEach.call(wrappers, function (wrapper) {
 			if (wrapper.__zymargBooted) return;
 			wrapper.__zymargBooted = true;
 			initWrapper(wrapper, cfg);
+			newlyBooted++;
 		});
+		diag.wrappersBooted += newlyBooted;
+		if (newlyBooted > 0) {
+			logInfo('booted ' + newlyBooted + ' search wrapper(s).');
+		}
 	}
 
 	/* ---------------------------------------------------------------- */
@@ -197,7 +295,10 @@
 		var clearBtn   = wrapper.querySelector('.zymarg-algolia-clear');
 		var form       = wrapper.querySelector('.zymarg-algolia-form');
 
-		if (!input || !dropdown || !resultsBox || !emptyBox) return;
+		if (!input || !dropdown || !resultsBox || !emptyBox) {
+			logWarn('a search wrapper is missing required inner elements; skipping init for it.');
+			return;
+		}
 
 		// Empty-state CTA from settings.
 		var emptyText = emptyBox.querySelector('.zymarg-algolia-empty-text');
@@ -230,7 +331,6 @@
 			emptyBox.hidden = true;
 			var html = '';
 
-			// Categories first — quickest to scan visually.
 			if (catHits && catHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.categories) + '</h4>';
@@ -248,7 +348,6 @@
 				html += '</div>';
 			}
 
-			// Products.
 			if (productHits && productHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.products) + '</h4>';
@@ -275,7 +374,6 @@
 				html += '</div>';
 			}
 
-			// Vendors.
 			if (vendorHits && vendorHits.length) {
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
 					escapeHtml(cfg.i18n.vendors) + '</h4>';
@@ -298,7 +396,6 @@
 				html += '</div>';
 			}
 
-			// "See all" link -> standard WP search page (?s=) so SEO crawl works.
 			if (query) {
 				var url = (form && form.getAttribute('action')) || (window.location.origin + '/');
 				url += (url.indexOf('?') >= 0 ? '&' : '?') +
@@ -312,6 +409,7 @@
 		};
 
 		var search = function (query) {
+			diag.lastQuery = query;
 			if (!query) {
 				closeDropdown();
 				return;
@@ -328,8 +426,7 @@
 			var reqId = ++lastReqId;
 
 			client.search(requests).then(function (res) {
-				if (reqId !== lastReqId) return; // a newer search has fired
-
+				if (reqId !== lastReqId) return;
 				hideLoading();
 				var p = (res && res.results && res.results[0]) || {};
 				var v = (res && res.results && res.results[1]) || {};
@@ -337,6 +434,7 @@
 				var pHits = p.hits || [];
 				var vHits = v.hits || [];
 				var cHits = c.hits || [];
+				diag.lastResultCounts = { products: pHits.length, vendors: vHits.length, categories: cHits.length };
 
 				if (!pHits.length && !vHits.length && !cHits.length) {
 					renderEmpty();
@@ -346,20 +444,25 @@
 			}).catch(function (err) {
 				if (reqId !== lastReqId) return;
 				hideLoading();
-				if (window.console) console.error('[ZymargAlgolia]', err);
-				// Show the friendly CTA so the user has somewhere to go.
+				diag.lastError = (err && err.message) ? err.message : String(err);
+				logError('search request failed:', err);
 				renderEmpty();
 			});
 		};
 
-		// Type -> instant search (debounced 100ms).
+		// Type -> instant search (debounced 100ms). Multiple event listeners
+		// so IME composition, paste, autofill, and physical keys all trigger.
 		var debounced = debounce(function () {
 			var q = (input.value || '').trim();
 			if (clearBtn) clearBtn.hidden = !q;
 			search(q);
 		}, 100);
 
-		input.addEventListener('input', debounced);
+		input.addEventListener('input',          debounced);
+		input.addEventListener('keyup',          debounced);
+		input.addEventListener('paste',          function () { setTimeout(debounced, 0); });
+		input.addEventListener('compositionend', debounced);
+		input.addEventListener('change',         debounced);
 		input.addEventListener('focus', function () {
 			var q = (input.value || '').trim();
 			if (q) search(q);

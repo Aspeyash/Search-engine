@@ -2,32 +2,12 @@
 /**
  * Elementor widget: "ZYMARG Search".
  *
- * Adds a draggable widget to the Elementor panel under the "ZYMARG"
- * category. Renders the same instant-search bar as the shortcode/block.
- *
- * v1.0.6 — every dimension and color is now a CSS variable, so this
- * widget exposes a comprehensive set of Elementor controls covering:
- *
- *   Content tab:
- *     - Placeholder text
- *     - Alignment (responsive)
- *     - Max width (responsive)
- *
- *   Style tab > Input:
- *     - Input height, padding, font size / weight / letter-spacing
- *     - Border color, width, radius
- *     - Background color
- *     - Text + placeholder colors
- *     - Accent / focus ring color
- *     - Icon size + gap
- *
- *   Style tab > Dropdown:
- *     - Max height (so the dropdown can shrink/grow)
- *     - Background, border, radius, shadow toggle
- *     - Offset (gap between input and dropdown)
- *
- *   Style tab > Empty state:
- *     - Text color, button bg / hover / text colors, button radius
+ * v1.0.7 changes:
+ *   - "Stretch to full container width" toggle (overrides max-width entirely)
+ *   - Max width slider now goes up to 3000px (was capped at 1600px)
+ *   - New "Input field" section with explicit Field height, Vertical text
+ *     padding, Line height, Min width controls — covers the "tab where I
+ *     write the word" feedback.
  *
  * @package ZymargAlgolia
  */
@@ -40,9 +20,6 @@ if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
 	return;
 }
 
-/**
- * Class Zymarg_Algolia_Elementor_Widget
- */
 class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 
 	public function get_name() {
@@ -65,10 +42,6 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		return array( 'search', 'algolia', 'zymarg', 'product', 'instant', 'autocomplete' );
 	}
 
-	/**
-	 * Enqueue our frontend script + style in the editor preview iframe so
-	 * the widget renders live (no need to publish to see it).
-	 */
 	public function get_script_depends() {
 		return array( Zymarg_Algolia_Frontend::SCRIPT_HANDLE );
 	}
@@ -77,9 +50,6 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		return array( Zymarg_Algolia_Frontend::STYLE_HANDLE );
 	}
 
-	/**
-	 * Register Elementor controls.
-	 */
 	protected function register_controls() {
 
 		/* ============================================================ */
@@ -112,18 +82,9 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'     => __( 'Alignment', 'zymarg-algolia' ),
 				'type'      => \Elementor\Controls_Manager::CHOOSE,
 				'options'   => array(
-					'flex-start' => array(
-						'title' => __( 'Left', 'zymarg-algolia' ),
-						'icon'  => 'eicon-text-align-left',
-					),
-					'center'     => array(
-						'title' => __( 'Center', 'zymarg-algolia' ),
-						'icon'  => 'eicon-text-align-center',
-					),
-					'flex-end'   => array(
-						'title' => __( 'Right', 'zymarg-algolia' ),
-						'icon'  => 'eicon-text-align-right',
-					),
+					'flex-start' => array( 'title' => __( 'Left',   'zymarg-algolia' ), 'icon' => 'eicon-text-align-left' ),
+					'center'     => array( 'title' => __( 'Center', 'zymarg-algolia' ), 'icon' => 'eicon-text-align-center' ),
+					'flex-end'   => array( 'title' => __( 'Right',  'zymarg-algolia' ), 'icon' => 'eicon-text-align-right' ),
 				),
 				'default'   => 'center',
 				'selectors' => array(
@@ -132,20 +93,37 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_control(
+			'stretch',
+			array(
+				'label'        => __( 'Stretch to full container width', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'When ON, the bar ignores Max width and fills 100% of its container — drop it inside an Elementor section set to Full Width to span the entire page.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => '',
+				'return_value' => 'yes',
+				'selectors'    => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => 'max-width: 100% !important;',
+				),
+			)
+		);
+
 		$this->add_responsive_control(
 			'max_width',
 			array(
-				'label'      => __( 'Max width', 'zymarg-algolia' ),
-				'description' => __( 'Set this to "100%" to fill the entire container.', 'zymarg-algolia' ),
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px', '%', 'vw' ),
-				'range'      => array(
-					'px' => array( 'min' => 200, 'max' => 1600, 'step' => 10 ),
+				'label'       => __( 'Max width', 'zymarg-algolia' ),
+				'description' => __( 'Goes up to 3000px. Ignored if "Stretch to full container width" is ON.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( 'px', '%', 'vw' ),
+				'range'       => array(
+					'px' => array( 'min' => 200, 'max' => 3000, 'step' => 10 ),
 					'%'  => array( 'min' => 30,  'max' => 100,  'step' => 1 ),
 					'vw' => array( 'min' => 30,  'max' => 100,  'step' => 1 ),
 				),
-				'default'    => array( 'size' => 720, 'unit' => 'px' ),
-				'selectors'  => array(
+				'default'     => array( 'size' => 720, 'unit' => 'px' ),
+				'condition'   => array( 'stretch!' => 'yes' ),
+				'selectors'   => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-max-width: {{SIZE}}{{UNIT}};',
 				),
 			)
@@ -154,11 +132,11 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		/* ============================================================ */
-		/* Style tab > Input.                                            */
+		/* Style tab > Search bar (outer container).                     */
 		/* ============================================================ */
 
 		$this->start_controls_section(
-			'section_style_input',
+			'section_style_bar',
 			array(
 				'label' => __( 'Search bar', 'zymarg-algolia' ),
 				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
@@ -171,9 +149,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Bar height', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 32, 'max' => 100, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 32, 'max' => 120, 'step' => 1 ) ),
 				'default'    => array( 'size' => 50, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-input-height: {{SIZE}}{{UNIT}};',
@@ -187,9 +163,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Horizontal padding', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 				'default'    => array( 'size' => 14, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-padding-x: {{SIZE}}{{UNIT}};',
@@ -203,9 +177,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Border radius', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 0, 'max' => 60, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 80, 'step' => 1 ) ),
 				'default'    => array( 'size' => 14, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-radius: {{SIZE}}{{UNIT}};',
@@ -219,9 +191,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Border width', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 0, 'max' => 6, 'step' => 0.5 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 8, 'step' => 0.5 ) ),
 				'default'    => array( 'size' => 1.5, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-border-width: {{SIZE}}{{UNIT}};',
@@ -235,9 +205,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Icon size', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 12, 'max' => 32, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
 				'default'    => array( 'size' => 18, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-icon-size: {{SIZE}}{{UNIT}};',
@@ -248,15 +216,13 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$this->add_control(
 			'icon_gap',
 			array(
-				'label'      => __( 'Icon gap', 'zymarg-algolia' ),
-				'description' => __( 'Space between the icon and the input text.', 'zymarg-algolia' ),
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 0, 'max' => 30, 'step' => 1 ),
-				),
-				'default'    => array( 'size' => 10, 'unit' => 'px' ),
-				'selectors'  => array(
+				'label'       => __( 'Icon gap', 'zymarg-algolia' ),
+				'description' => __( 'Space between the icon and the text input.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( 'px' ),
+				'range'       => array( 'px' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+				'default'     => array( 'size' => 10, 'unit' => 'px' ),
+				'selectors'   => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-icon-gap: {{SIZE}}{{UNIT}};',
 				),
 			)
@@ -265,13 +231,13 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		/* ============================================================ */
-		/* Style tab > Typography.                                       */
+		/* Style tab > Input field — the typing area.                    */
 		/* ============================================================ */
 
 		$this->start_controls_section(
-			'section_style_typography',
+			'section_style_input',
 			array(
-				'label' => __( 'Typography', 'zymarg-algolia' ),
+				'label' => __( 'Input field (text area)', 'zymarg-algolia' ),
 				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
 			)
 		);
@@ -282,9 +248,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Text size', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 11, 'max' => 28, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 11, 'max' => 40, 'step' => 1 ) ),
 				'default'    => array( 'size' => 15, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-font-size: {{SIZE}}{{UNIT}};',
@@ -299,14 +263,58 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'type'    => \Elementor\Controls_Manager::SELECT,
 				'default' => '400',
 				'options' => array(
-					'300' => __( 'Light (300)', 'zymarg-algolia' ),
-					'400' => __( 'Normal (400)', 'zymarg-algolia' ),
-					'500' => __( 'Medium (500)', 'zymarg-algolia' ),
+					'300' => __( 'Light (300)',     'zymarg-algolia' ),
+					'400' => __( 'Normal (400)',    'zymarg-algolia' ),
+					'500' => __( 'Medium (500)',    'zymarg-algolia' ),
 					'600' => __( 'Semi-bold (600)', 'zymarg-algolia' ),
-					'700' => __( 'Bold (700)', 'zymarg-algolia' ),
+					'700' => __( 'Bold (700)',      'zymarg-algolia' ),
 				),
 				'selectors' => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-font-weight: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'input_padding_y',
+			array(
+				'label'       => __( 'Vertical text padding', 'zymarg-algolia' ),
+				'description' => __( 'Extra space above and below the typed text inside the input.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( 'px' ),
+				'range'       => array( 'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+				'default'     => array( 'size' => 0, 'unit' => 'px' ),
+				'selectors'   => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-input-padding-y: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'input_line_height',
+			array(
+				'label'      => __( 'Text line height', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( '' ),
+				'range'      => array( '' => array( 'min' => 1, 'max' => 3, 'step' => 0.05 ) ),
+				'default'    => array( 'size' => 1.4, 'unit' => '' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-input-line-height: {{SIZE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'input_min_width',
+			array(
+				'label'       => __( 'Input min-width', 'zymarg-algolia' ),
+				'description' => __( 'Force the typing area to a minimum width — useful when the icon + clear button take up too much space.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( 'px' ),
+				'range'       => array( 'px' => array( 'min' => 0, 'max' => 1200, 'step' => 10 ) ),
+				'default'     => array( 'size' => 0, 'unit' => 'px' ),
+				'selectors'   => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-input-min-width: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -317,9 +325,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Letter spacing', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => -2, 'max' => 8, 'step' => 0.1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => -2, 'max' => 8, 'step' => 0.1 ) ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-letter-spacing: {{SIZE}}{{UNIT}};',
 				),
@@ -413,16 +419,16 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$this->add_responsive_control(
 			'dropdown_max_height',
 			array(
-				'label'      => __( 'Max height', 'zymarg-algolia' ),
-				'description' => __( 'How tall the dropdown can grow before it scrolls. Use vh for screen-height percent.', 'zymarg-algolia' ),
-				'type'       => \Elementor\Controls_Manager::SLIDER,
-				'size_units' => array( 'px', 'vh' ),
-				'range'      => array(
-					'px' => array( 'min' => 120, 'max' => 900, 'step' => 10 ),
-					'vh' => array( 'min' => 30,  'max' => 95,  'step' => 1 ),
+				'label'       => __( 'Max height', 'zymarg-algolia' ),
+				'description' => __( 'How tall the dropdown can grow before it scrolls.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( 'px', 'vh' ),
+				'range'       => array(
+					'px' => array( 'min' => 120, 'max' => 1200, 'step' => 10 ),
+					'vh' => array( 'min' => 30,  'max' => 95,   'step' => 1 ),
 				),
-				'default'    => array( 'size' => 70, 'unit' => 'vh' ),
-				'selectors'  => array(
+				'default'     => array( 'size' => 70, 'unit' => 'vh' ),
+				'selectors'   => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-dropdown-max-height: {{SIZE}}{{UNIT}};',
 				),
 			)
@@ -431,15 +437,12 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$this->add_control(
 			'dropdown_offset',
 			array(
-				'label'       => __( 'Offset from bar', 'zymarg-algolia' ),
-				'description' => __( 'Vertical gap between the search bar and the dropdown.', 'zymarg-algolia' ),
-				'type'        => \Elementor\Controls_Manager::SLIDER,
-				'size_units'  => array( 'px' ),
-				'range'       => array(
-					'px' => array( 'min' => 0, 'max' => 30, 'step' => 1 ),
-				),
-				'default'     => array( 'size' => 8, 'unit' => 'px' ),
-				'selectors'   => array(
+				'label'      => __( 'Offset from bar', 'zymarg-algolia' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 50, 'step' => 1 ) ),
+				'default'    => array( 'size' => 8, 'unit' => 'px' ),
+				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-dropdown-offset: {{SIZE}}{{UNIT}};',
 				),
 			)
@@ -451,9 +454,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Border radius', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 				'default'    => array( 'size' => 14, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-dropdown-radius: {{SIZE}}{{UNIT}};',
@@ -491,8 +492,8 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'default'   => 'soft',
 				'options'   => array(
 					'soft' => __( 'Soft (default)', 'zymarg-algolia' ),
-					'hard' => __( 'Hard', 'zymarg-algolia' ),
-					'none' => __( 'None', 'zymarg-algolia' ),
+					'hard' => __( 'Hard',           'zymarg-algolia' ),
+					'none' => __( 'None',           'zymarg-algolia' ),
 				),
 				'selectors_dictionary' => array(
 					'soft' => '0 10px 40px -10px rgba(123, 63, 228, 0.25), 0 4px 12px rgba(0,0,0,0.05)',
@@ -569,9 +570,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 				'label'      => __( 'Button radius', 'zymarg-algolia' ),
 				'type'       => \Elementor\Controls_Manager::SLIDER,
 				'size_units' => array( 'px' ),
-				'range'      => array(
-					'px' => array( 'min' => 0, 'max' => 40, 'step' => 1 ),
-				),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 				'default'    => array( 'size' => 999, 'unit' => 'px' ),
 				'selectors'  => array(
 					'{{WRAPPER}} .zymarg-algolia-wrapper' => '--zymarg-empty-btn-radius: {{SIZE}}{{UNIT}};',
@@ -588,6 +587,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 	protected function render() {
 		$settings    = $this->get_settings_for_display();
 		$placeholder = isset( $settings['placeholder'] ) ? trim( (string) $settings['placeholder'] ) : '';
+		$stretch     = ! empty( $settings['stretch'] ) && 'yes' === $settings['stretch'];
 
 		if ( '' !== $placeholder ) {
 			add_filter(
@@ -598,6 +598,6 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			);
 		}
 
-		echo Zymarg_Algolia_Frontend::render_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo Zymarg_Algolia_Frontend::render_html( array( 'stretch' => $stretch ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }

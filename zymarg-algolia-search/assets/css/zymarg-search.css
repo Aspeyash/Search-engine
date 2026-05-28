@@ -1,15 +1,19 @@
 /*!
  * ZYMARG Algolia Search - Brand styled.
- * v1.0.6
+ * v1.0.7
  *
  * Every dimension and color is a CSS custom property scoped to the wrapper
- * element. That way Elementor's `{{WRAPPER}}` selectors and Gutenberg's
- * inline styles can override anything per-instance — without leaking into
- * other widgets on the same page.
+ * element. Elementor's `{{WRAPPER}}` selectors and Gutenberg's inline
+ * styles can override anything per-instance — without leaking into other
+ * widgets on the same page.
  *
- * Override examples:
- *   .my-overrides .zymarg-algolia-wrapper { --zymarg-max-width: 1100px; }
- *   <div style="--zymarg-input-height:64px"> [block here] </div>
+ * v1.0.7 adds:
+ *   - --zymarg-input-padding-y  (vertical text padding inside the input)
+ *   - --zymarg-input-line-height
+ *   - --zymarg-input-min-width  (force the input to stretch even on very
+ *     wide containers)
+ *   - .zymarg-stretch modifier  (drops max-width to 100% so the bar fills
+ *     whatever container it's in)
  */
 
 .zymarg-algolia-wrapper {
@@ -25,7 +29,7 @@
 	--zymarg-muted:         #6b6b73;
 	--zymarg-placeholder:   #6b6b73;
 
-	/* ---------- Input ---------- */
+	/* ---------- Input bar ---------- */
 	--zymarg-bg:            #ffffff;
 	--zymarg-border:        #e6e3ee;
 	--zymarg-border-width:  1.5px;
@@ -35,9 +39,14 @@
 	--zymarg-padding-x:     14px;
 	--zymarg-icon-size:     18px;
 	--zymarg-icon-gap:      10px;
-	--zymarg-font-size:     15px;
-	--zymarg-font-weight:   400;
-	--zymarg-letter-spacing: 0;
+
+	/* ---------- Input text ---------- */
+	--zymarg-font-size:        15px;
+	--zymarg-font-weight:      400;
+	--zymarg-letter-spacing:   0;
+	--zymarg-input-padding-y:  0;
+	--zymarg-input-line-height: 1.4;
+	--zymarg-input-min-width:  0;
 
 	/* ---------- Dropdown ---------- */
 	--zymarg-dropdown-bg:         #ffffff;
@@ -77,7 +86,12 @@
 	z-index: 50;
 }
 
-/* Allow the block's wrap div to sit on a flex parent without collapsing. */
+/* Stretch modifier — drop the max-width cap so the bar fills its container. */
+.zymarg-algolia-wrapper.zymarg-stretch {
+	max-width: 100%;
+}
+
+/* The block wrapper from Gutenberg should not collapse on flex parents. */
 .zymarg-algolia-block-wrap {
 	width: 100%;
 }
@@ -139,19 +153,20 @@
 }
 
 .zymarg-algolia-input {
-	flex: 1;
+	flex: 1 1 auto;
+	min-width: var(--zymarg-input-min-width);
 	border: 0;
 	outline: none;
 	background: transparent;
 	font-size: var(--zymarg-font-size);
 	font-weight: var(--zymarg-font-weight);
 	letter-spacing: var(--zymarg-letter-spacing);
+	line-height: var(--zymarg-input-line-height);
 	height: 100%;
 	color: var(--zymarg-text);
-	padding: 0;
-	min-width: 0;
+	padding: var(--zymarg-input-padding-y) 0;
 	font-family: inherit;
-	line-height: 1.4;
+	box-sizing: border-box;
 }
 .zymarg-algolia-input::placeholder {
 	color: var(--zymarg-placeholder);

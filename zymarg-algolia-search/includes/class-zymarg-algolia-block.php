@@ -2,15 +2,12 @@
 /**
  * "ZYMARG Search" Gutenberg block + classic widget + Elementor widget loader.
  *
- * Adds a real, dragable widget to:
- *   - The WordPress block inserter (Gutenberg / Site Editor / posts / pages).
- *   - Legacy widget areas (Appearance -> Widgets, Astra header widget zones).
- *   - The Elementor panel (under a "ZYMARG" category) — when Elementor is active.
- *
- * v1.0.6: the Gutenberg block now renders inline CSS variables on the
- * wrapper from block attributes (max width, input height, font size,
- * dropdown max height, colors, border radius), so users can fully
- * customize the search bar without writing CSS.
+ * v1.0.7 changes:
+ *   - New `stretch` block attribute (toggle in sidebar) — drops max-width
+ *     so the bar fills its container.
+ *   - New attributes for input internals: inputPaddingY, lineHeight,
+ *     inputMinWidth.
+ *   - Max-width now accepts up to 3000 px.
  *
  * @package ZymargAlgolia
  */
@@ -19,21 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class Zymarg_Algolia_Block
- */
 class Zymarg_Algolia_Block {
 
 	const BLOCK_NAME = 'zymarg/algolia-search';
 
 	public function __construct() {
-		// Gutenberg block (registered on init, after frontend assets register).
 		add_action( 'init', array( $this, 'register_block' ), 20 );
-
-		// Classic widget (Appearance -> Widgets, Astra header widget zones, etc).
 		add_action( 'widgets_init', array( $this, 'register_widget' ) );
-
-		// Make the search bar's CSS+JS available in the Gutenberg editor preview iframe.
 		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_in_editor' ) );
 
 		// Elementor integration.
@@ -48,15 +37,11 @@ class Zymarg_Algolia_Block {
 	/* Gutenberg block.                                                    */
 	/* ------------------------------------------------------------------ */
 
-	/**
-	 * Register the Gutenberg block.
-	 */
 	public function register_block() {
 		if ( ! function_exists( 'register_block_type' ) ) {
 			return;
 		}
 
-		// Block editor JS — registers "ZYMARG Search" in the inserter.
 		wp_register_script(
 			'zymarg-algolia-block',
 			ZYMARG_ALGOLIA_URL . 'assets/js/zymarg-block.js',
@@ -82,12 +67,18 @@ class Zymarg_Algolia_Block {
 					'align'              => array( 'type' => 'string' ),
 
 					// Layout.
+					'stretch'            => array( 'type' => 'boolean', 'default' => false ),
 					'maxWidth'           => array( 'type' => 'number' ),
 					'inputHeight'        => array( 'type' => 'number' ),
 					'fontSize'           => array( 'type' => 'number' ),
 					'borderRadius'       => array( 'type' => 'number' ),
 					'paddingX'           => array( 'type' => 'number' ),
 					'iconSize'           => array( 'type' => 'number' ),
+
+					// Input field internals.
+					'inputPaddingY'      => array( 'type' => 'number' ),
+					'lineHeight'         => array( 'type' => 'number' ),
+					'inputMinWidth'      => array( 'type' => 'number' ),
 
 					// Dropdown.
 					'dropdownMaxHeight'  => array( 'type' => 'number' ),
@@ -112,9 +103,6 @@ class Zymarg_Algolia_Block {
 
 	/**
 	 * Server-side render for the Gutenberg block.
-	 *
-	 * @param array $attrs Block attributes.
-	 * @return string
 	 */
 	public function render_block( $attrs ) {
 		$attrs = is_array( $attrs ) ? $attrs : array();
@@ -129,8 +117,9 @@ class Zymarg_Algolia_Block {
 			);
 		}
 
-		// Build the inline `style="..."` with CSS variables — these cascade
-		// from the wrap div down to .zymarg-algolia-wrapper inside it.
+		$stretch = ! empty( $attrs['stretch'] );
+
+		// Build inline `style="..."` of CSS variables (cascade to inner wrapper).
 		$vars = array();
 
 		$num_map = array(
@@ -140,6 +129,8 @@ class Zymarg_Algolia_Block {
 			'borderRadius'      => '--zymarg-radius',
 			'paddingX'          => '--zymarg-padding-x',
 			'iconSize'          => '--zymarg-icon-size',
+			'inputPaddingY'     => '--zymarg-input-padding-y',
+			'inputMinWidth'     => '--zymarg-input-min-width',
 			'dropdownMaxHeight' => '--zymarg-dropdown-max-height',
 			'dropdownRadius'    => '--zymarg-dropdown-radius',
 			'dropdownOffset'    => '--zymarg-dropdown-offset',
@@ -148,6 +139,11 @@ class Zymarg_Algolia_Block {
 			if ( isset( $attrs[ $key ] ) && is_numeric( $attrs[ $key ] ) ) {
 				$vars[ $css_var ] = intval( $attrs[ $key ] ) . 'px';
 			}
+		}
+
+		// lineHeight is unitless.
+		if ( isset( $attrs['lineHeight'] ) && is_numeric( $attrs['lineHeight'] ) ) {
+			$vars['--zymarg-input-line-height'] = (string) floatval( $attrs['lineHeight'] );
 		}
 
 		$color_map = array(
@@ -166,7 +162,6 @@ class Zymarg_Algolia_Block {
 			}
 		}
 
-		// Accent maps to two variables (purple + purple-600).
 		if ( ! empty( $attrs['accentColor'] ) ) {
 			$accent = $this->sanitize_color( $attrs['accentColor'] );
 			if ( $accent ) {
@@ -187,25 +182,22 @@ class Zymarg_Algolia_Block {
 		$align_class = $align ? ' align' . $align : '';
 
 		return '<div class="zymarg-algolia-block-wrap' . esc_attr( $align_class ) . '"' . $style_attr . '>' .
-			Zymarg_Algolia_Frontend::render_html() .
+			Zymarg_Algolia_Frontend::render_html( array( 'stretch' => $stretch ) ) .
 			'</div>';
 	}
 
 	/**
-	 * Light-weight color sanitization. Allows hex (#abc, #abcdef), rgb(...),
-	 * rgba(...), hsl(...), hsla(...), and CSS keywords — rejects anything
-	 * that could break out of a `style=""` attribute.
+	 * Light-weight color sanitization. Allows hex, rgb(a), hsl(a), and CSS
+	 * keywords. Rejects anything that could break out of the style attribute.
 	 */
 	protected function sanitize_color( $value ) {
 		$value = is_string( $value ) ? trim( $value ) : '';
 		if ( $value === '' ) {
 			return '';
 		}
-		// Reject anything with characters that could escape an attribute.
 		if ( preg_match( '/[<>"\'`]/', $value ) ) {
 			return '';
 		}
-		// Allow common color formats + CSS keywords.
 		if ( preg_match( '/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$/', $value ) ) {
 			return $value;
 		}
@@ -218,9 +210,6 @@ class Zymarg_Algolia_Block {
 		return '';
 	}
 
-	/**
-	 * Enqueue the live search assets inside the Gutenberg / Elementor editor.
-	 */
 	public function enqueue_in_editor() {
 		$app_id     = zymarg_algolia_get_setting( 'app_id' );
 		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
@@ -243,9 +232,6 @@ class Zymarg_Algolia_Block {
 	/* Elementor.                                                          */
 	/* ------------------------------------------------------------------ */
 
-	/**
-	 * Add a "ZYMARG" category to the Elementor panel.
-	 */
 	public function register_elementor_category( $manager ) {
 		if ( ! is_object( $manager ) || ! method_exists( $manager, 'add_category' ) ) {
 			return;
@@ -259,9 +245,6 @@ class Zymarg_Algolia_Block {
 		);
 	}
 
-	/**
-	 * Register the Elementor widget.
-	 */
 	public function register_elementor_widget( $widgets_manager ) {
 		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
 			return;
@@ -274,8 +257,7 @@ class Zymarg_Algolia_Block {
 }
 
 /**
- * Classic WP_Widget for legacy widget areas (sidebars, Astra header widget
- * blocks, footer columns, etc).
+ * Classic WP_Widget for legacy widget areas.
  */
 class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 
@@ -293,6 +275,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 	public function widget( $args, $instance ) {
 		$title       = ! empty( $instance['title'] ) ? apply_filters( 'widget_title', $instance['title'], $instance, $this->id_base ) : '';
 		$placeholder = ! empty( $instance['placeholder'] ) ? $instance['placeholder'] : '';
+		$stretch     = ! empty( $instance['stretch'] );
 
 		if ( $placeholder ) {
 			$ph = (string) $placeholder;
@@ -308,13 +291,14 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		if ( $title ) {
 			echo $args['before_title'] . esc_html( $title ) . $args['after_title']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
-		echo Zymarg_Algolia_Frontend::render_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo Zymarg_Algolia_Frontend::render_html( array( 'stretch' => $stretch ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $args['after_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	public function form( $instance ) {
 		$title       = isset( $instance['title'] ) ? (string) $instance['title'] : '';
 		$placeholder = isset( $instance['placeholder'] ) ? (string) $instance['placeholder'] : '';
+		$stretch     = ! empty( $instance['stretch'] );
 		?>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>">
@@ -337,6 +321,17 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 				value="<?php echo esc_attr( $placeholder ); ?>"
 				placeholder="<?php esc_attr_e( 'Search products, vendors, categories…', 'zymarg-algolia' ); ?>" />
 		</p>
+		<p>
+			<input
+				id="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'stretch' ) ); ?>"
+				type="checkbox"
+				value="1"
+				<?php checked( $stretch, true ); ?> />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'stretch' ) ); ?>">
+				<?php esc_html_e( 'Stretch to full container width', 'zymarg-algolia' ); ?>
+			</label>
+		</p>
 		<?php
 	}
 
@@ -344,6 +339,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		return array(
 			'title'       => isset( $new_instance['title'] ) ? sanitize_text_field( $new_instance['title'] ) : '',
 			'placeholder' => isset( $new_instance['placeholder'] ) ? sanitize_text_field( $new_instance['placeholder'] ) : '',
+			'stretch'     => ! empty( $new_instance['stretch'] ) ? 1 : 0,
 		);
 	}
 }

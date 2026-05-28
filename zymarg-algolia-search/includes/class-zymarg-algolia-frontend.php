@@ -2,12 +2,9 @@
 /**
  * Frontend: register/enqueue search assets + render search bar HTML.
  *
- * v1.0.6: NO external library. The search script talks to Algolia's REST
- * API directly via window.fetch(), so jsDelivr / unpkg outages, ad-blockers
- * and strict CSP no longer break the search bar.
- *
- * Assets are registered on `init` so the block editor (Gutenberg) and the
- * Elementor editor preview can enqueue them too — not only the public site.
+ * v1.0.6+: NO external library. The search script talks to Algolia's REST
+ * API directly via window.fetch(). v1.0.7: localize now ships the plugin
+ * version + a `stretch` flag to support unlimited bar width.
  *
  * @package ZymargAlgolia
  */
@@ -25,32 +22,22 @@ class Zymarg_Algolia_Frontend {
 	const STYLE_HANDLE  = 'zymarg-algolia-search';
 
 	public function __construct() {
-		// Register early so any context (frontend, block editor, Elementor preview) can enqueue.
 		add_action( 'init', array( $this, 'register_assets' ), 5 );
-		// Public-facing pages.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 
-	/**
-	 * Should we load assets on this page?
-	 *
-	 * @return bool
-	 */
 	protected function should_load() {
 		return (bool) apply_filters( 'zymarg_algolia_should_enqueue', true );
 	}
 
 	/**
 	 * Register the search script + style.
-	 *
-	 * Idempotent — safe to call multiple times.
 	 */
 	public function register_assets() {
 		if ( wp_script_is( self::SCRIPT_HANDLE, 'registered' ) ) {
 			return;
 		}
 
-		// No external library — fully self-contained search bar.
 		wp_register_script(
 			self::SCRIPT_HANDLE,
 			ZYMARG_ALGOLIA_URL . 'assets/js/zymarg-search.js',
@@ -73,6 +60,7 @@ class Zymarg_Algolia_Frontend {
 			self::SCRIPT_HANDLE,
 			'ZymargAlgolia',
 			array(
+				'version'       => ZYMARG_ALGOLIA_VERSION,
 				'appId'         => $app_id,
 				'searchKey'     => $search_key,
 				'indexProducts' => zymarg_algolia_index_name( 'products' ),
@@ -96,20 +84,15 @@ class Zymarg_Algolia_Frontend {
 		);
 	}
 
-	/**
-	 * Enqueue assets on public pages (when configured).
-	 */
 	public function enqueue() {
 		if ( ! $this->should_load() ) {
 			return;
 		}
-		// Make sure registration ran (e.g. when 'init' priority differs in some setups).
 		$this->register_assets();
 
 		$app_id     = zymarg_algolia_get_setting( 'app_id' );
 		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
 
-		// Don't enqueue if not configured (avoid console errors).
 		if ( empty( $app_id ) || empty( $search_key ) ) {
 			return;
 		}
@@ -122,12 +105,18 @@ class Zymarg_Algolia_Frontend {
 	 * Render the search bar HTML. Used by shortcode, Gutenberg block,
 	 * classic widget and the Elementor widget.
 	 *
+	 * @param array $args Optional. Currently supports:
+	 *   - 'stretch' (bool) — drop the max-width cap so the bar fills its container.
 	 * @return string
 	 */
-	public static function render_html() {
+	public static function render_html( $args = array() ) {
+		$args    = is_array( $args ) ? $args : array();
+		$stretch = ! empty( $args['stretch'] );
+		$wrap_cls = 'zymarg-algolia-wrapper' . ( $stretch ? ' zymarg-stretch' : '' );
+
 		ob_start();
 		?>
-		<div class="zymarg-algolia-wrapper" data-zymarg-search>
+		<div class="<?php echo esc_attr( $wrap_cls ); ?>" data-zymarg-search>
 			<div class="zymarg-algolia-orb zymarg-algolia-orb-1" aria-hidden="true"></div>
 			<div class="zymarg-algolia-orb zymarg-algolia-orb-2" aria-hidden="true"></div>
 

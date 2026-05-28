@@ -4,11 +4,11 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories and Dokan vendors. Brand-styled instant dropdown with custom no-results CTA. Drag-and-drop block + Elementor widget — no shortcode required.
+Algolia-powered instant search for the ZYMARG marketplace. Brand-styled instant dropdown with full Elementor + Gutenberg styling controls. No external CDN.
 
 == Description ==
 
@@ -26,9 +26,9 @@ Features:
 * SEO-safe: form submit still goes to ?s= so Google can crawl
 * Mobile responsive, no iOS zoom-on-focus
 * No conflict with WooCommerce / Dokan / Astra / Elementor Pro
-* Three placement options — drag the Gutenberg block, the Elementor widget, or the classic widget. Shortcode kept for backwards compatibility.
-* Lightweight: ~14 KB CSS + ~10 KB JS, **zero external libraries** — talks to Algolia's REST API directly via fetch()
-* Every dimension and color is a CSS variable, so the Elementor widget exposes ~30 controls and the Gutenberg block has full sidebar controls
+* Three placement options — Gutenberg block, Elementor widget, or classic widget. Shortcode kept for backwards compatibility.
+* Lightweight: ~14 KB CSS + ~12 KB JS, **zero external libraries** — talks to Algolia's REST API directly via fetch()
+* Every dimension and color is a CSS variable, so the Elementor widget exposes ~35 controls and the Gutenberg block has full sidebar controls
 
 == Installation ==
 
@@ -37,26 +37,39 @@ Features:
 3. Go to **Settings -> ZYMARG Algolia** and paste your Algolia App ID, Admin API Key, and Search-Only API Key.
 4. Click **Verify connection**, then **Reindex everything now**.
 5. Place the search bar — pick whichever you prefer:
-   * **Elementor:** drag *"ZYMARG Search"* from the panel (under the *ZYMARG* category). Live preview in the editor with full styling controls.
-   * **Gutenberg / Site Editor:** click the inserter, search *"ZYMARG Search"*. Adjust layout / colors in the right sidebar.
-   * **Appearance -> Widgets:** drop the *"ZYMARG Search"* widget into any sidebar or header widget zone.
-   * *(Legacy)* shortcode `[zymarg_algolia_search]` still works.
+   * **Elementor:** drag *"ZYMARG Search"* from the panel (under the *ZYMARG* category).
+   * **Gutenberg / Site Editor:** click the inserter, search *"ZYMARG Search"*.
+   * **Appearance -> Widgets:** drop the *"ZYMARG Search"* widget into any sidebar.
+
+After installing, **clear your hosting page cache** (LiteSpeed / WP Rocket / W3 Total Cache / Cloudflare) and hard-reload your page (Ctrl/Cmd + Shift + R), otherwise the cached HTML will still reference the old script.
+
+== Diagnostics ==
+
+If instant search isn't firing, open your site in DevTools (F12) -> Console and run:
+
+`zymargAlgoliaDebug()`
+
+It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
 
+= 1.0.7 =
+* **New:** "Stretch to full container width" toggle in both Elementor widget and Gutenberg block — drops the max-width cap so the bar fills 100% of its container regardless of the slider.
+* **New:** Max-width slider now goes up to **3000px** (was 1600px).
+* **New:** "Input field (text area)" Elementor section with explicit Vertical text padding, Line height, Min width controls — fully addresses the "tab where I write the word" customization request.
+* **Fix:** Defensive boot — leading semicolon in IIFE so JS combiners cannot break the script. Wrapper detection now falls back to `.zymarg-algolia-wrapper` class if `data-zymarg-search` is stripped by HTML minifiers. Multiple input event listeners (input / keyup / paste / change / compositionend) so IME, paste, autofill all trigger instant search.
+* **Fix:** Config detection retries 8 times over ~2s in case wp_localize_script is delayed by JS deferring/combining plugins.
+* **New diagnostic:** call `zymargAlgoliaDebug()` in DevTools to print a full status report (version, config, wrappers found/booted, last query, last error).
+* **New:** Plugin version is now exposed via `window.ZymargAlgolia.version` so you can verify which version is actually loaded.
+
 = 1.0.6 =
-* **Critical fix:** instant search no longer depends on any external CDN. The script now calls Algolia's REST API directly with `fetch()`, with multi-host failover (`-dsn` -> `-1` -> `-2` -> `-3`). This eliminates the entire class of "search only fires on Enter" bugs caused by jsDelivr being blocked, slow, or cached as a stale failure by ad-blockers, WAFs, or strict CSP.
-* **New:** Comprehensive Elementor controls — bar height, max width (px / % / vw), font size, font weight, letter spacing, horizontal padding, icon size + gap, border radius, border width, all colors (text / placeholder / background / border / accent), dropdown max height (px or vh), dropdown background / border / radius / offset, drop-shadow style, full empty-state customization (text color, button bg / hover / text / radius).
-* **New:** Gutenberg block sidebar now offers Range controls for max width, bar height, text size, padding, icon size, border radius, dropdown max height, dropdown radius, dropdown offset, plus a color panel for text / placeholder / background / border / accent / dropdown background.
-* **New:** Every dimension and color is now a wrapper-scoped CSS variable, so per-instance customization works cleanly without leaking between widgets.
-* **Improvement:** Search bar now stretches to the full container width when "Max width" is increased — was previously capped because the wrapper wasn't using `width: 100%` on flex parents.
-* **Improvement:** Built-in v1.0.6 console banner (`[ZymargAlgolia] v1.0.6 ready`) so you can verify in DevTools that the new script is actually running.
+* Critical fix: instant search no longer depends on any external CDN. Direct fetch() to Algolia REST API with multi-host failover.
+* Comprehensive Elementor + Gutenberg styling controls.
+* Every dimension/color is now a wrapper-scoped CSS variable.
 
 = 1.0.5 =
-* New "ZYMARG Search" Gutenberg block, Elementor widget (under the ZYMARG category), and classic WP_Widget. No more shortcode required.
-* Fixed instant search firing only on Enter (caused by an unused `window.instantsearch` boot guard).
-* Search bar now renders live inside the Elementor editor — no need to publish.
-* Race-protect concurrent Algolia requests.
+* New "ZYMARG Search" Gutenberg block, Elementor widget (under ZYMARG category), classic WP_Widget. No more shortcode required.
+* Search bar now renders live inside the Elementor editor.
 
 = 1.0.0 =
 * Initial release.
