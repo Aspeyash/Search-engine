@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.17
+Stable tag: 1.0.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,18 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.18 =
+* **Indexer: 7 new / refreshed product fields** pushed to the Algolia products index. Supports merchandising widgets (e.g. Product Archive Grid v1.1.0) that read directly from Algolia, plus better faceting and ranking for instant search.
+  * `regular_price` (float) — list price before any discount.
+  * `sale_price` (float, nullable) — current sale price; `null` when the product isn't on sale.
+  * `stock_quantity` (int, nullable) — current managed stock count; `null` when stock isn't being managed (or for parent-only variable products).
+  * `total_sales` (int) — now sourced from `wp_wc_product_meta_lookup.total_sales` (kept in sync by Woo) with a graceful fall-back to the legacy `total_sales` postmeta. Faster reads on bulk reindex; identical output otherwise.
+  * `product_type` (string) — `simple` / `variable` / `grouped` / `external`. Lets downstream widgets route variable products to the product page instead of trying to AJAX-add them.
+  * `min_variation_price` (float, nullable) — minimum visible variation price for variable products; `null` for non-variables. Read from `_min_price` postmeta (kept in sync by `WC_Product_Variable::sync()`).
+  * `max_variation_price` (float, nullable) — maximum visible variation price; `null` for non-variables. Read from `_max_price` postmeta.
+* **Backwards compatible.** Existing fields (`price`, `on_sale`, `in_stock`, `categories`, `vendor_*`, etc.) are unchanged. The new fields appear on each product the next time the indexer runs — trigger a manual reindex from **Settings → ZYMARG Algolia → Reindex everything now** after upgrading.
+* **No public-facing JS / CSS / search-behavior changes** in this release. Bumped JS internal `VERSION` constant to `1.0.18` so the console banner accurately reports the running version.
 
 = 1.0.17 =
 * **New: Loading spinner mode setting** — pick when (or if) the small purple spinner appears inside the search dropdown. Three options:
