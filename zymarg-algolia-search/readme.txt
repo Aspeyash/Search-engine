@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.14
+Stable tag: 1.0.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,15 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.15 =
+* **New: Result count badge** — every dropdown now shows the total number of matches at the top (e.g., "231 results") plus per-section counts (Products (12), Categories (3)). Frames the response so users know there's more to explore.
+* **New: Recent searches** — when the user focuses the empty input, their last 5 unique search queries appear as clickable pills. Stored entirely in the user's `localStorage` (per-browser, never sent to your server, GDPR-clean). Includes a small "Clear" link to wipe history.
+* **New: Trending searches** — pulls the top searches from your existing analytics cache and shows them as pills below recent searches when the input is empty. Auto-refreshes every 30 minutes. The list will be empty for ~24h after install while Algolia processes enough searches to populate it.
+* **New: "Showing related results for X"** — when an exact-match search returns zero hits, the plugin automatically retries once with `removeWordsIfNoResults: 'allOptional'` (Algolia's word-relaxation parameter). If that finds related products, they're shown with a clear header instead of the empty CTA. Catches typos and over-specific queries gracefully.
+* **New: Click tracking via Algolia Insights** — every search now includes `clickAnalytics: true` and every result click fires an asynchronous event to `https://insights.algolia.io/1/events`. Uses `navigator.sendBeacon` for reliability across page navigations. Each user gets an anonymous UUID stored in `localStorage` (no PII, no cookies). After 7+ days of click data, Algolia's machine-learning **Re-Ranking** feature will start automatically promoting popular results. Verify event ingestion in your Algolia dashboard at **Events → Debugger** after install.
+* **New: Keyboard navigation** — ↑/↓ to move between results, Enter to open the highlighted one, Esc to close. The active hit is visually highlighted with a soft purple background. Form-submit (Enter when no hit is highlighted) still goes to `/?s=` as before, so both UX patterns coexist correctly.
+* **Internal:** new `Zymarg_Algolia_Dashboard::get_cached_trending_searches()` static helper that reads the analytics cache without making any live API calls — adds zero latency to every public pageview.
 
 = 1.0.14 =
 * **Fix:** Dashboard analytics widget now finds your data when your Algolia cluster is in the EU region (Germany, France, UK, etc). Algolia segregates analytics by region — apps on EU clusters are served from `analytics.de.algolia.com`, not the global `analytics.algolia.com`. The plugin previously only queried the global endpoint, which silently returns HTTP 200 with an empty `searches` array for EU apps. Now the dashboard tries both endpoints automatically (Global first, EU fallback) and locks onto whichever returns data.

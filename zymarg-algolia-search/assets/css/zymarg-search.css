@@ -360,6 +360,104 @@ input.zymarg-algolia-input[type="search"] {
 	outline: none;
 }
 
+/* ---------- 1.0.15: result count badge ---------- */
+.zymarg-algolia-count {
+	padding: 8px 16px;
+	font-size: 11px;
+	color: var(--zymarg-muted);
+	border-bottom: 1px solid var(--zymarg-dropdown-border);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	font-family: var(--zymarg-font-heading);
+}
+.zymarg-algolia-count .zymarg-algolia-count-num {
+	color: var(--zymarg-purple);
+	font-weight: 700;
+}
+.zymarg-algolia-section-count {
+	color: var(--zymarg-muted);
+	font-weight: 500;
+	font-size: 10px;
+}
+
+/* ---------- 1.0.15: "Showing related results for X" header ---------- */
+.zymarg-algolia-related-header {
+	padding: 10px 16px;
+	font-size: 12px;
+	color: var(--zymarg-text);
+	background: var(--zymarg-purple-50);
+	border-bottom: 1px solid var(--zymarg-dropdown-border);
+	font-family: var(--zymarg-font-body);
+}
+.zymarg-algolia-related-header strong {
+	color: var(--zymarg-purple);
+	font-weight: 700;
+}
+
+/* ---------- 1.0.15: empty-state pills (recent + trending) ---------- */
+.zymarg-algolia-recent .zymarg-algolia-section-title,
+.zymarg-algolia-trending .zymarg-algolia-section-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.zymarg-algolia-recent-clear {
+	font-size: 11px;
+	color: var(--zymarg-muted);
+	text-decoration: none;
+	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
+}
+.zymarg-algolia-recent-clear:hover {
+	color: var(--zymarg-purple);
+}
+.zymarg-algolia-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 4px 16px 14px;
+}
+.zymarg-algolia-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	background: var(--zymarg-purple-50);
+	color: var(--zymarg-purple);
+	border: 0;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 500;
+	font-family: var(--zymarg-font-body);
+	cursor: pointer;
+	transition: background .12s ease, color .12s ease;
+	white-space: nowrap;
+	max-width: 240px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.zymarg-algolia-pill:hover {
+	background: var(--zymarg-purple);
+	color: #fff;
+}
+.zymarg-algolia-pill::before {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	flex-shrink: 0;
+	background: currentColor;
+	-webkit-mask: var(--zymarg-pill-icon) no-repeat center / contain;
+	        mask: var(--zymarg-pill-icon) no-repeat center / contain;
+}
+.zymarg-algolia-pill-recent::before {
+	--zymarg-pill-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>");
+}
+.zymarg-algolia-pill-trending::before {
+	--zymarg-pill-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 17l6-6 4 4 8-8'/><path d='M14 7h7v7'/></svg>");
+}
+
 .zymarg-algolia-hit-img {
 	width: var(--zymarg-hit-img-size);
 	height: var(--zymarg-hit-img-size);

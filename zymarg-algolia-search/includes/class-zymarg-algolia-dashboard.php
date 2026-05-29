@@ -26,6 +26,35 @@ class Zymarg_Algolia_Dashboard {
 	const ANALYTICS_CACHE_KEY = 'zymarg_algolia_analytics';
 	const ANALYTICS_CACHE_TTL = 30 * MINUTE_IN_SECONDS;
 
+	/**
+	 * Static helper exposed for the frontend (1.0.15+).
+	 *
+	 * Reads the analytics cache (populated by the dashboard widget on each
+	 * admin pageview) and returns the top N search terms as a flat array of
+	 * strings, suitable for "Trending searches" pills in the empty-state
+	 * dropdown. Never makes a live API call — purely cache-read so it adds
+	 * zero latency to every public page render.
+	 *
+	 * @param int $limit Max results to return.
+	 * @return array<string>
+	 */
+	public static function get_cached_trending_searches( $limit = 6 ) {
+		$cached = get_transient( self::ANALYTICS_CACHE_KEY );
+		if ( ! is_array( $cached ) || empty( $cached['top_searches'] ) || ! is_array( $cached['top_searches'] ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $cached['top_searches'] as $row ) {
+			if ( is_array( $row ) && ! empty( $row['search'] ) ) {
+				$out[] = (string) $row['search'];
+				if ( count( $out ) >= (int) $limit ) {
+					break;
+				}
+			}
+		}
+		return $out;
+	}
+
 	public function __construct() {
 		add_action( 'wp_dashboard_setup', array( $this, 'register_widget' ) );
 		// Track last index update time.

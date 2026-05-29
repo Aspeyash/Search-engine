@@ -56,28 +56,42 @@ class Zymarg_Algolia_Frontend {
 		$app_id     = zymarg_algolia_get_setting( 'app_id' );
 		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
 
+		// Pull trending searches from the dashboard's analytics cache (1.0.15+).
+		// Read-only, never blocks the page — empty array if cache isn't warm yet.
+		$trending = array();
+		if ( class_exists( 'Zymarg_Algolia_Dashboard' ) && method_exists( 'Zymarg_Algolia_Dashboard', 'get_cached_trending_searches' ) ) {
+			$trending = Zymarg_Algolia_Dashboard::get_cached_trending_searches( 6 );
+		}
+
 		wp_localize_script(
 			self::SCRIPT_HANDLE,
 			'ZymargAlgolia',
 			array(
-				'version'       => ZYMARG_ALGOLIA_VERSION,
-				'appId'         => $app_id,
-				'searchKey'     => $search_key,
-				'indexProducts' => zymarg_algolia_index_name( 'products' ),
-				'indexVendors'  => zymarg_algolia_index_name( 'vendors' ),
-				'indexCats'     => zymarg_algolia_index_name( 'categories' ),
-				'communityUrl'  => zymarg_algolia_get_setting( 'community_url' ),
-				'noResultsText' => zymarg_algolia_get_setting( 'no_results_text' ),
-				'requestBtn'    => zymarg_algolia_get_setting( 'request_btn' ),
-				'placeholder'   => __( 'Search products, vendors, categories…', 'zymarg-algolia' ),
-				'i18n'          => array(
-					'products'   => __( 'Products', 'zymarg-algolia' ),
-					'vendors'    => __( 'Vendors', 'zymarg-algolia' ),
-					'categories' => __( 'Categories', 'zymarg-algolia' ),
-					'by'         => __( 'by', 'zymarg-algolia' ),
-					'viewAll'    => __( 'See all results', 'zymarg-algolia' ),
+				'version'         => ZYMARG_ALGOLIA_VERSION,
+				'appId'           => $app_id,
+				'searchKey'       => $search_key,
+				'indexProducts'   => zymarg_algolia_index_name( 'products' ),
+				'indexVendors'    => zymarg_algolia_index_name( 'vendors' ),
+				'indexCats'       => zymarg_algolia_index_name( 'categories' ),
+				'communityUrl'    => zymarg_algolia_get_setting( 'community_url' ),
+				'noResultsText'   => zymarg_algolia_get_setting( 'no_results_text' ),
+				'requestBtn'      => zymarg_algolia_get_setting( 'request_btn' ),
+				'placeholder'     => __( 'Search products, vendors, categories…', 'zymarg-algolia' ),
+				'trendingSearches' => $trending,
+				'i18n'            => array(
+					'products'         => __( 'Products', 'zymarg-algolia' ),
+					'vendors'          => __( 'Vendors', 'zymarg-algolia' ),
+					'categories'       => __( 'Categories', 'zymarg-algolia' ),
+					'by'               => __( 'by', 'zymarg-algolia' ),
+					'viewAll'          => __( 'See all results', 'zymarg-algolia' ),
+					'recentSearches'   => __( 'Recent searches', 'zymarg-algolia' ),
+					'trendingSearches' => __( 'Trending searches', 'zymarg-algolia' ),
+					'clear'            => __( 'Clear', 'zymarg-algolia' ),
+					'resultSingular'   => __( 'result', 'zymarg-algolia' ),
+					'resultPlural'     => __( 'results', 'zymarg-algolia' ),
+					'relatedFor'       => __( 'Showing related results for', 'zymarg-algolia' ),
 				),
-				'currencySym'   => function_exists( 'get_woocommerce_currency_symbol' )
+				'currencySym'     => function_exists( 'get_woocommerce_currency_symbol' )
 					? html_entity_decode( get_woocommerce_currency_symbol() )
 					: '$',
 			)

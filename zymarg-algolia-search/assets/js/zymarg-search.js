@@ -21,7 +21,122 @@
 ;(function () {
 	'use strict';
 
-	var VERSION = '1.0.13';
+	var VERSION = '1.0.15';
+
+	/* ---------------------------------------------------------------- */
+	/* Local-storage helpers (recent searches + anonymous user token).  */
+	/* ---------------------------------------------------------------- */
+
+	var STORAGE_RECENT = 'zymarg_recent_searches';
+	var STORAGE_USER   = 'zymarg_user_token';
+	var RECENT_LIMIT   = 5;
+
+	function safeLocalGet(key) {
+		try { return window.localStorage.getItem(key); } catch (e) { return null; }
+	}
+	function safeLocalSet(key, value) {
+		try { window.localStorage.setItem(key, value); } catch (e) {}
+	}
+	function safeLocalRemove(key) {
+		try { window.localStorage.removeItem(key); } catch (e) {}
+	}
+
+	function uuidv4() {
+		var rnd = (window.crypto && typeof window.crypto.getRandomValues === 'function')
+			? function (n) { var a = new Uint8Array(n); window.crypto.getRandomValues(a); return a; }
+			: function (n) { var a = new Uint8Array(n); for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256); return a; };
+		var b = rnd(16);
+		b[6] = (b[6] & 0x0f) | 0x40;
+		b[8] = (b[8] & 0x3f) | 0x80;
+		var hex = '';
+		for (var i = 0; i < 16; i++) {
+			hex += (b[i] < 16 ? '0' : '') + b[i].toString(16);
+			if (i === 3 || i === 5 || i === 7 || i === 9) hex += '-';
+		}
+		return hex;
+	}
+
+	function getUserToken() {
+		var t = safeLocalGet(STORAGE_USER);
+		if (!t) {
+			t = 'anonymous-' + uuidv4();
+			safeLocalSet(STORAGE_USER, t);
+		}
+		return t;
+	}
+
+	function getRecentSearches() {
+		try {
+			var raw = safeLocalGet(STORAGE_RECENT);
+			if (!raw) return [];
+			var arr = JSON.parse(raw);
+			return Array.isArray(arr) ? arr : [];
+		} catch (e) {
+			return [];
+		}
+	}
+
+	function addRecentSearch(q) {
+		q = (q || '').trim();
+		if (!q) return;
+		var list = getRecentSearches().filter(function (s) {
+			return s && String(s).toLowerCase() !== q.toLowerCase();
+		});
+		list.unshift(q);
+		if (list.length > RECENT_LIMIT) list = list.slice(0, RECENT_LIMIT);
+		try { safeLocalSet(STORAGE_RECENT, JSON.stringify(list)); } catch (e) {}
+	}
+
+	function clearRecentSearches() {
+		safeLocalRemove(STORAGE_RECENT);
+	}
+
+	/* ---------------------------------------------------------------- */
+	/* Algolia Insights — click event tracking (fire-and-forget).        */
+	/* ---------------------------------------------------------------- */
+
+	function sendInsightsEvent(cfg, indexName, queryID, objectID, position) {
+		if (!cfg || !cfg.appId || !cfg.searchKey) return;
+		if (!queryID || !objectID || !indexName) return;
+
+		var payload = {
+			events: [{
+				eventType: 'click',
+				eventName: 'Product Clicked from Search',
+				index:     indexName,
+				queryID:   queryID,
+				objectIDs: [String(objectID)],
+				positions: position ? [position] : undefined,
+				userToken: getUserToken(),
+				timestamp: Date.now()
+			}]
+		};
+
+		try {
+			var body = JSON.stringify(payload);
+
+			if (navigator && typeof navigator.sendBeacon === 'function') {
+				var beaconUrl = 'https://insights.algolia.io/1/events' +
+					'?X-Algolia-Application-Id=' + encodeURIComponent(cfg.appId) +
+					'&X-Algolia-API-Key=' + encodeURIComponent(cfg.searchKey);
+				navigator.sendBeacon(beaconUrl, new Blob([body], { type: 'application/json' }));
+				return;
+			}
+
+			fetch('https://insights.algolia.io/1/events', {
+				method: 'POST',
+				headers: {
+					'X-Algolia-Application-Id': cfg.appId,
+					'X-Algolia-API-Key':        cfg.searchKey,
+					'Content-Type':             'application/json'
+				},
+				body: body,
+				keepalive: true,
+				mode: 'cors',
+				credentials: 'omit'
+			}).catch(function () {});
+		} catch (e) {}
+	}
 
 	/* ---------------------------------------------------------------- */
 	/* Diagnostic state. zymargAlgoliaDebug() reads this.                */
@@ -341,15 +456,38 @@
 			openDropdown();
 		};
 
-		var renderResults = function (productHits, catHits, vendorHits, query) {
+		var renderResults = function (productHits, catHits, vendorHits, query, queryIDs, counts, relatedFor) {
 			emptyBox.hidden = true;
+			queryIDs = queryIDs || { products: '', categories: '', vendors: '' };
+			counts   = counts   || { products: productHits.length, categories: catHits.length, vendorsHits: vendorHits.length };
+
 			var html = '';
 
-			// Products first — what users are mostly looking for.
+			// "Showing related results for X" header — only when the main
+			// search returned zero hits and we fell back to allOptional.
+			if (relatedFor) {
+				html += '<div class="zymarg-algolia-related-header">' +
+					escapeHtml(cfg.i18n.relatedFor || 'Showing related results for') +
+					' <strong>' + escapeHtml(relatedFor) + '</strong></div>';
+			}
+
+			// Result count badge — total across all visible sections.
+			var totalCount = (counts.products || 0) + (counts.categories || 0) + (counts.vendors || 0);
+			if (totalCount > 0) {
+				html += '<div class="zymarg-algolia-count">' +
+					'<span class="zymarg-algolia-count-num">' + totalCount + '</span> ' +
+					escapeHtml(totalCount === 1 ? (cfg.i18n.resultSingular || 'result') : (cfg.i18n.resultPlural || 'results')) +
+				'</div>';
+			}
+
+			// Products first.
 			if (productHits && productHits.length) {
+				var qidProducts = queryIDs.products || '';
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.products) + '</h4>';
-				productHits.slice(0, 6).forEach(function (h) {
+					escapeHtml(cfg.i18n.products) +
+					(counts.products ? ' <span class="zymarg-algolia-section-count">(' + counts.products + ')</span>' : '') +
+					'</h4>';
+				productHits.slice(0, 6).forEach(function (h, idx) {
 					var price = h.price_html
 						? h.price_html
 						: (h.price ? (cfg.currencySym + Number(h.price).toFixed(2)) : '');
@@ -358,7 +496,11 @@
 							getHighlight(h, 'vendor_name') + '</span>'
 						: '';
 
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
+					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' +
+						' data-zymarg-index="' + escapeHtml(cfg.indexProducts) + '"' +
+						' data-zymarg-queryid="' + escapeHtml(qidProducts) + '"' +
+						' data-zymarg-objectid="' + escapeHtml(h.objectID || '') + '"' +
+						' data-zymarg-position="' + (idx + 1) + '">' +
 						(h.thumbnail
 							? '<img class="zymarg-algolia-hit-img" src="' + escapeHtml(h.thumbnail) + '" alt="" loading="lazy" />'
 							: '<span class="zymarg-algolia-hit-img"></span>') +
@@ -374,10 +516,17 @@
 
 			// Categories second.
 			if (catHits && catHits.length) {
+				var qidCats = queryIDs.categories || '';
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.categories) + '</h4>';
-				catHits.slice(0, 3).forEach(function (h) {
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
+					escapeHtml(cfg.i18n.categories) +
+					(counts.categories ? ' <span class="zymarg-algolia-section-count">(' + counts.categories + ')</span>' : '') +
+					'</h4>';
+				catHits.slice(0, 3).forEach(function (h, idx) {
+					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' +
+						' data-zymarg-index="' + escapeHtml(cfg.indexCats) + '"' +
+						' data-zymarg-queryid="' + escapeHtml(qidCats) + '"' +
+						' data-zymarg-objectid="' + escapeHtml(h.objectID || '') + '"' +
+						' data-zymarg-position="' + (idx + 1) + '">' +
 						'<span class="zymarg-algolia-cat-img">' +
 							(h.image ? '<img src="' + escapeHtml(h.image) + '" alt="" loading="lazy" />' : '') +
 						'</span>' +
@@ -392,11 +541,18 @@
 
 			// Vendors last (default OFF — only renders when explicitly enabled).
 			if (vendorHits && vendorHits.length) {
+				var qidVendors = queryIDs.vendors || '';
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.vendors) + '</h4>';
-				vendorHits.slice(0, 4).forEach(function (h) {
+					escapeHtml(cfg.i18n.vendors) +
+					(counts.vendors ? ' <span class="zymarg-algolia-section-count">(' + counts.vendors + ')</span>' : '') +
+					'</h4>';
+				vendorHits.slice(0, 4).forEach(function (h, idx) {
 					var initials = (h.name || '').trim().charAt(0).toUpperCase() || 'Z';
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
+					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' +
+						' data-zymarg-index="' + escapeHtml(cfg.indexVendors) + '"' +
+						' data-zymarg-queryid="' + escapeHtml(qidVendors) + '"' +
+						' data-zymarg-objectid="' + escapeHtml(h.objectID || '') + '"' +
+						' data-zymarg-position="' + (idx + 1) + '">' +
 						'<span class="zymarg-algolia-vendor-avatar">' +
 							(h.avatar
 								? '<img src="' + escapeHtml(h.avatar) + '" alt="" loading="lazy" />'
@@ -423,13 +579,14 @@
 			}
 
 			resultsBox.innerHTML = html;
+			resetActiveHit();
 			openDropdown();
 		};
 
 		var search = function (query) {
 			diag.lastQuery = query;
 			if (!query) {
-				closeDropdown();
+				renderEmptyStateContent();
 				return;
 			}
 			showLoading();
@@ -437,24 +594,24 @@
 
 			// Build the requests array based on which sections this widget
 			// shows. Hidden sections aren't queried at all — saves Algolia
-			// API calls and avoids errors when an index doesn't exist (e.g.
-			// no Dokan vendors yet means no zymarg_vendors index).
+			// API calls and avoids errors when an index doesn't exist.
+			// 1.0.15: clickAnalytics=true generates a queryID per index so we
+			// can attribute clicks back to the search via the Insights API.
 			var requests = [];
 			var resultTypes = [];
 			if (showProducts) {
-				requests.push({ indexName: cfg.indexProducts, params: { query: query, hitsPerPage: 6 } });
+				requests.push({ indexName: cfg.indexProducts, params: { query: query, hitsPerPage: 6, clickAnalytics: true } });
 				resultTypes.push('products');
 			}
 			if (showCategories) {
-				requests.push({ indexName: cfg.indexCats, params: { query: query, hitsPerPage: 3 } });
+				requests.push({ indexName: cfg.indexCats, params: { query: query, hitsPerPage: 3, clickAnalytics: true } });
 				resultTypes.push('categories');
 			}
 			if (showVendors) {
-				requests.push({ indexName: cfg.indexVendors, params: { query: query, hitsPerPage: 4 } });
+				requests.push({ indexName: cfg.indexVendors, params: { query: query, hitsPerPage: 4, clickAnalytics: true } });
 				resultTypes.push('vendors');
 			}
 
-			// Edge case: every section toggled off — just close the dropdown.
 			if (!requests.length) {
 				hideLoading();
 				closeDropdown();
@@ -466,21 +623,32 @@
 			client.search(requests).then(function (res) {
 				if (reqId !== lastReqId) return;
 				hideLoading();
-				var hits = { products: [], categories: [], vendors: [] };
-				(((res && res.results) || [])).forEach(function (r, i) {
-					hits[resultTypes[i]] = r.hits || [];
-				});
-				diag.lastResultCounts = {
-					products:   hits.products.length,
-					categories: hits.categories.length,
-					vendors:    hits.vendors.length
-				};
 
-				if (!hits.products.length && !hits.categories.length && !hits.vendors.length) {
-					renderEmpty();
+				var byType    = { products: [], categories: [], vendors: [] };
+				var counts    = { products: 0,  categories: 0,  vendors: 0  };
+				var queryIDs  = { products: '', categories: '', vendors: ''  };
+
+				(((res && res.results) || [])).forEach(function (r, i) {
+					var type = resultTypes[i];
+					byType[type]    = r.hits || [];
+					counts[type]    = (typeof r.nbHits === 'number') ? r.nbHits : (r.hits || []).length;
+					queryIDs[type]  = r.queryID || '';
+				});
+
+				diag.lastResultCounts = counts;
+
+				var totalHits = byType.products.length + byType.categories.length + byType.vendors.length;
+
+				if (totalHits === 0) {
+					// 1.0.15 "Did you mean" via related-products fallback.
+					// Retry once with removeWordsIfNoResults: 'allOptional'
+					// against the products index. If that returns hits, show
+					// them with a "Showing related results" header.
+					tryRelatedFallback(query, reqId);
 					return;
 				}
-				renderResults(hits.products, hits.categories, hits.vendors, query);
+
+				renderResults(byType.products, byType.categories, byType.vendors, query, queryIDs, counts);
 			}).catch(function (err) {
 				if (reqId !== lastReqId) return;
 				hideLoading();
@@ -489,6 +657,171 @@
 				renderEmpty();
 			});
 		};
+
+		// "Did you mean" via related-products fallback — fires only when the
+		// main search returned zero hits. One extra Algolia request, products
+		// index only, with removeWordsIfNoResults so any word subset matches.
+		var tryRelatedFallback = function (query, reqId) {
+			if (!showProducts || !cfg.indexProducts) {
+				renderEmpty();
+				return;
+			}
+			showLoading();
+			openDropdown();
+			client.search([{
+				indexName: cfg.indexProducts,
+				params: {
+					query: query,
+					hitsPerPage: 6,
+					clickAnalytics: true,
+					removeWordsIfNoResults: 'allOptional'
+				}
+			}]).then(function (res) {
+				if (reqId !== lastReqId) return;
+				hideLoading();
+				var r        = (res && res.results && res.results[0]) || {};
+				var hits     = r.hits || [];
+				var queryIDs = { products: r.queryID || '', categories: '', vendors: '' };
+				var counts   = { products: (typeof r.nbHits === 'number') ? r.nbHits : hits.length, categories: 0, vendors: 0 };
+
+				if (!hits.length) {
+					renderEmpty();
+					return;
+				}
+				renderResults(hits, [], [], query, queryIDs, counts, /* relatedFor */ query);
+			}).catch(function () {
+				if (reqId !== lastReqId) return;
+				hideLoading();
+				renderEmpty();
+			});
+		};
+
+		/* ------------------------------------------------------------ */
+		/* 1.0.15 additions: empty-state pills, keyboard nav, click track */
+		/* ------------------------------------------------------------ */
+
+		// Empty-state content: Recent searches + Trending searches.
+		// Triggered when input is focused with no value, or when the user
+		// erases their text back to empty.
+		var renderEmptyStateContent = function () {
+			var recent   = getRecentSearches();
+			var trending = (cfg.trendingSearches && Array.isArray(cfg.trendingSearches)) ? cfg.trendingSearches : [];
+
+			if (!recent.length && !trending.length) {
+				closeDropdown();
+				return;
+			}
+
+			emptyBox.hidden = true;
+			var html = '';
+
+			if (recent.length) {
+				html += '<div class="zymarg-algolia-section zymarg-algolia-recent">' +
+					'<h4 class="zymarg-algolia-section-title">' +
+						escapeHtml(cfg.i18n.recentSearches || 'Recent searches') +
+						' <a href="#" class="zymarg-algolia-recent-clear">' +
+							escapeHtml(cfg.i18n.clear || 'Clear') +
+						'</a>' +
+					'</h4>' +
+					'<div class="zymarg-algolia-pills">';
+				recent.forEach(function (q) {
+					html += '<button type="button" class="zymarg-algolia-pill zymarg-algolia-pill-recent" data-q="' +
+						escapeHtml(q) + '">' + escapeHtml(q) + '</button>';
+				});
+				html += '</div></div>';
+			}
+
+			if (trending.length) {
+				html += '<div class="zymarg-algolia-section zymarg-algolia-trending">' +
+					'<h4 class="zymarg-algolia-section-title">' +
+						escapeHtml(cfg.i18n.trendingSearches || 'Trending searches') +
+					'</h4>' +
+					'<div class="zymarg-algolia-pills">';
+				trending.forEach(function (q) {
+					html += '<button type="button" class="zymarg-algolia-pill zymarg-algolia-pill-trending" data-q="' +
+						escapeHtml(q) + '">' + escapeHtml(q) + '</button>';
+				});
+				html += '</div></div>';
+			}
+
+			resultsBox.innerHTML = html;
+			resetActiveHit();
+			openDropdown();
+		};
+
+		// Keyboard navigation state.
+		var activeHit = null;
+
+		var resetActiveHit = function () {
+			if (activeHit) {
+				activeHit.classList.remove('is-active');
+				activeHit = null;
+			}
+		};
+
+		var moveActiveHit = function (dir) {
+			var hits = wrapper.querySelectorAll('.zymarg-algolia-hit');
+			if (!hits.length) return;
+
+			var current = -1;
+			Array.prototype.forEach.call(hits, function (h, i) {
+				if (h === activeHit) current = i;
+			});
+
+			var next;
+			if (dir > 0) {
+				next = (current + 1) % hits.length;
+			} else {
+				next = (current <= 0) ? (hits.length - 1) : (current - 1);
+			}
+
+			if (activeHit) activeHit.classList.remove('is-active');
+			activeHit = hits[next];
+			activeHit.classList.add('is-active');
+			if (typeof activeHit.scrollIntoView === 'function') {
+				activeHit.scrollIntoView({ block: 'nearest' });
+			}
+		};
+
+		// Track click on a hit so we can fire an Insights event before the
+		// browser navigates. Uses event delegation on the dropdown so it
+		// works for any hit including ones that get re-rendered later.
+		dropdown.addEventListener('click', function (e) {
+			// Pill click → re-run search with the chosen query.
+			var pill = e.target.closest && e.target.closest('.zymarg-algolia-pill');
+			if (pill) {
+				e.preventDefault();
+				var q = pill.getAttribute('data-q') || '';
+				input.value = q;
+				if (clearBtn) clearBtn.hidden = !q;
+				search(q);
+				return;
+			}
+
+			// "Clear recent" link.
+			var clearLink = e.target.closest && e.target.closest('.zymarg-algolia-recent-clear');
+			if (clearLink) {
+				e.preventDefault();
+				clearRecentSearches();
+				renderEmptyStateContent();
+				return;
+			}
+
+			// Hit click → fire Insights event (fire-and-forget).
+			var hit = e.target.closest && e.target.closest('.zymarg-algolia-hit');
+			if (hit) {
+				var indexName = hit.getAttribute('data-zymarg-index');
+				var queryID   = hit.getAttribute('data-zymarg-queryid');
+				var objectID  = hit.getAttribute('data-zymarg-objectid');
+				var position  = parseInt(hit.getAttribute('data-zymarg-position'), 10) || 0;
+				if (indexName && queryID && objectID) {
+					sendInsightsEvent(cfg, indexName, queryID, objectID, position);
+				}
+				// Also save the current query as a recent search.
+				addRecentSearch(input.value);
+				// Don't preventDefault — let the browser navigate normally.
+			}
+		});
 
 		// Type -> instant search (debounced 100ms). Multiple event listeners
 		// so IME composition, paste, autofill, and physical keys all trigger.
@@ -505,12 +838,55 @@
 		input.addEventListener('change',         debounced);
 		input.addEventListener('focus', function () {
 			var q = (input.value || '').trim();
-			if (q) search(q);
+			if (q) {
+				search(q);
+			} else {
+				renderEmptyStateContent();
+			}
+		});
+
+		// Keyboard navigation: ↑/↓ move active hit, Enter opens it,
+		// Esc closes the dropdown.
+		input.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape' || e.keyCode === 27) {
+				closeDropdown();
+				input.blur();
+				return;
+			}
+			if (e.key === 'ArrowDown' || e.keyCode === 40) {
+				e.preventDefault();
+				moveActiveHit(+1);
+				return;
+			}
+			if (e.key === 'ArrowUp' || e.keyCode === 38) {
+				e.preventDefault();
+				moveActiveHit(-1);
+				return;
+			}
+			if (e.key === 'Enter' || e.keyCode === 13) {
+				if (activeHit) {
+					e.preventDefault();
+					var indexName = activeHit.getAttribute('data-zymarg-index');
+					var queryID   = activeHit.getAttribute('data-zymarg-queryid');
+					var objectID  = activeHit.getAttribute('data-zymarg-objectid');
+					var position  = parseInt(activeHit.getAttribute('data-zymarg-position'), 10) || 0;
+					if (indexName && queryID && objectID) {
+						sendInsightsEvent(cfg, indexName, queryID, objectID, position);
+					}
+					addRecentSearch(input.value);
+					var href = activeHit.getAttribute('href');
+					if (href) {
+						window.location.href = href;
+					}
+				}
+				// else: let the form submit normally to /?s=...
+			}
 		});
 
 		// Submit -> let WP standard search take over (SEO crawlable).
 		if (form) {
 			form.addEventListener('submit', function () {
+				addRecentSearch(input.value);
 				closeDropdown();
 				var hidden = form.querySelector('input[name="post_type"]');
 				if (!hidden) {
@@ -535,14 +911,6 @@
 		// Click outside -> close.
 		document.addEventListener('click', function (e) {
 			if (!wrapper.contains(e.target)) closeDropdown();
-		});
-
-		// Esc -> close.
-		input.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape' || e.keyCode === 27) {
-				closeDropdown();
-				input.blur();
-			}
 		});
 	}
 })();
