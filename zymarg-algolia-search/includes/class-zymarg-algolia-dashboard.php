@@ -23,7 +23,7 @@ class Zymarg_Algolia_Dashboard {
 	/**
 	 * Transient key for analytics cache (avoid hammering Algolia).
 	 */
-	const ANALYTICS_CACHE_KEY = 'zymarg_algolia_analytics';
+	const ANALYTICS_CACHE_KEY = 'zymarg_algolia_analytics_v2';
 	const ANALYTICS_CACHE_TTL = 30 * MINUTE_IN_SECONDS;
 
 	/**
@@ -121,6 +121,64 @@ class Zymarg_Algolia_Dashboard {
 
 		echo '<div class="zymarg-dash-analytics">';
 
+		// 1.0.16: Stat cards row at the top.
+		$ctr_pct    = ( $analytics['ctr_rate'] !== null ) ? round( $analytics['ctr_rate'] * 100, 1 ) : null;
+		$avg_pos    = ( $analytics['avg_click_position'] !== null ) ? round( $analytics['avg_click_position'], 1 ) : null;
+		$volume     = ( $analytics['search_volume_total'] !== null ) ? (int) $analytics['search_volume_total'] : null;
+		$no_click_n = is_array( $analytics['no_clicks'] ) ? count( $analytics['no_clicks'] ) : 0;
+
+		$daily_points = array();
+		foreach ( (array) $analytics['search_volume_dates'] as $d ) {
+			if ( isset( $d['count'] ) ) {
+				$daily_points[] = (int) $d['count'];
+			}
+		}
+
+		echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:0 0 16px;">';
+
+		echo '<div style="background:#faf7ff;border:1px solid #ece4ff;border-radius:8px;padding:12px;">';
+		echo '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">' . ( $volume === null ? '<span style="color:#bbb;font-size:14px;">&mdash;</span>' : number_format_i18n( $volume ) ) . '</div>';
+		echo '<div style="font-size:11px;color:#777;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">Searches (7d)</div>';
+		if ( ! empty( $daily_points ) ) {
+			echo $this->render_sparkline( $daily_points );
+		}
+		echo '</div>';
+
+		echo '<div style="background:#faf7ff;border:1px solid #ece4ff;border-radius:8px;padding:12px;">';
+		echo '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">' . ( $ctr_pct === null ? '<span style="color:#bbb;font-size:14px;">&mdash;</span>' : esc_html( $ctr_pct ) . '<span style="font-size:14px;color:#777;">%</span>' ) . '</div>';
+		echo '<div style="font-size:11px;color:#777;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">Click-through rate</div>';
+		if ( $analytics['ctr_count'] !== null && $analytics['ctr_total'] !== null ) {
+			echo '<div style="font-size:11px;color:#999;margin-top:6px;">' . number_format_i18n( (int) $analytics['ctr_count'] ) . ' clicks / ' . number_format_i18n( (int) $analytics['ctr_total'] ) . ' searches</div>';
+		}
+		echo '</div>';
+
+		echo '<div style="background:#faf7ff;border:1px solid #ece4ff;border-radius:8px;padding:12px;">';
+		echo '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">' . ( $avg_pos === null ? '<span style="color:#bbb;font-size:14px;">&mdash;</span>' : esc_html( $avg_pos ) ) . '</div>';
+		echo '<div style="font-size:11px;color:#777;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">Avg click position</div>';
+		echo '<div style="font-size:11px;color:#999;margin-top:6px;">Lower = top results more relevant</div>';
+		echo '</div>';
+
+		$noclick_color = $no_click_n > 0 ? '#b85a00' : '#388e3c';
+		echo '<div style="background:#faf7ff;border:1px solid #ece4ff;border-radius:8px;padding:12px;">';
+		echo '<div style="font-size:22px;font-weight:700;color:' . $noclick_color . ';">' . esc_html( number_format_i18n( $no_click_n ) ) . '</div>';
+		echo '<div style="font-size:11px;color:#777;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">No-click queries</div>';
+		echo '<div style="font-size:11px;color:#999;margin-top:6px;">Hits but no clicks</div>';
+		echo '</div>';
+
+		echo '</div>';
+
+		// 1.0.16: Health check section — purely local, zero API calls.
+		$checks = $this->get_health_checks( $client );
+		echo '<details style="margin:0 0 16px;border:1px solid #e2d5ff;border-radius:8px;padding:6px 12px;background:#fff;">';
+		echo '<summary style="cursor:pointer;font-weight:600;font-size:13px;color:#444;padding:6px 0;">Health check (' . count( $checks ) . ')</summary>';
+		echo '<ul style="margin:6px 0 8px;padding-left:0;list-style:none;font-size:12px;">';
+		foreach ( $checks as $c ) {
+			$icon = $c['level'] === 'ok' ? '<span style="color:#388e3c;">&#10003;</span>' : ( $c['level'] === 'warn' ? '<span style="color:#b85a00;">!</span>' : '<span style="color:#b00020;">&#10007;</span>' );
+			echo '<li style="padding:3px 0;">' . $icon . ' ' . esc_html( $c['label'] ) . '</li>';
+		}
+		echo '</ul>';
+		echo '</details>';
+
 		// Top searches.
 		echo '<h4 style="margin:14px 0 8px;">Top 20 Search Queries (Last 7 Days)</h4>';
 		if ( ! empty( $analytics['top_searches'] ) ) {
@@ -152,6 +210,49 @@ class Zymarg_Algolia_Dashboard {
 			echo '</tbody></table>';
 		} else {
 			echo '<p style="color:#388e3c;font-size:13px;">Great! No zero-result searches recorded. Your catalog covers what users are looking for.</p>';
+		}
+
+		// 1.0.16: Searches with hits but no clicks — engagement opportunity.
+		echo '<h4 style="margin:18px 0 8px;color:#b85a00;">Searches With No Clicks (Last 7 Days)</h4>';
+		echo '<p style="font-size:12px;color:#666;margin:0 0 6px;">These searches found products, but nobody clicked. Review the matched products &mdash; titles, photos, or prices may need work.</p>';
+		if ( ! empty( $analytics['no_clicks'] ) ) {
+			echo '<table class="widefat striped"><thead><tr><th>#</th><th>Query</th><th style="text-align:right;">Searches</th><th style="text-align:right;">Hits</th></tr></thead><tbody>';
+			$i = 1;
+			foreach ( array_slice( $analytics['no_clicks'], 0, 20 ) as $item ) {
+				$query = isset( $item['search'] ) ? $item['search'] : ( isset( $item['query'] ) ? $item['query'] : '\u2014' );
+				$count = isset( $item['count'] ) ? (int) $item['count'] : 0;
+				$hits  = isset( $item['nbHits'] ) ? (int) $item['nbHits'] : 0;
+				echo '<tr><td>' . $i . '</td><td>' . esc_html( $query ) . '</td><td style="text-align:right;">' . number_format_i18n( $count ) . '</td><td style="text-align:right;">' . number_format_i18n( $hits ) . '</td></tr>';
+				$i++;
+			}
+			echo '</tbody></table>';
+		} else {
+			echo '<p style="color:#388e3c;font-size:13px;">Great! Every search with hits is getting clicks.</p>';
+		}
+
+		// 1.0.16: Click position distribution chart.
+		if ( ! empty( $analytics['click_positions'] ) ) {
+			echo '<h4 style="margin:18px 0 8px;">Click Position Distribution</h4>';
+			echo '<p style="font-size:12px;color:#666;margin:0 0 8px;">Where in the result list users click. Most clicks at position 1-3 = top results are highly relevant.</p>';
+			$max_count = 0;
+			foreach ( $analytics['click_positions'] as $row ) {
+				if ( isset( $row['clickCount'] ) && $row['clickCount'] > $max_count ) {
+					$max_count = (int) $row['clickCount'];
+				}
+			}
+			if ( $max_count > 0 ) {
+				echo '<div style="display:flex;gap:4px;align-items:flex-end;height:80px;background:#fafafa;border-radius:6px;padding:8px;">';
+				foreach ( array_slice( $analytics['click_positions'], 0, 15 ) as $row ) {
+					$pos = isset( $row['position'] ) ? ( is_array( $row['position'] ) ? implode( '-', $row['position'] ) : (string) $row['position'] ) : '?';
+					$cnt = isset( $row['clickCount'] ) ? (int) $row['clickCount'] : 0;
+					$h   = (int) ( ( $cnt / $max_count ) * 60 );
+					echo '<div style="flex:1;text-align:center;" title="Position ' . esc_attr( $pos ) . ': ' . esc_attr( number_format_i18n( $cnt ) ) . ' clicks">';
+					echo '<div style="background:#7B3FE4;border-radius:3px 3px 0 0;height:' . $h . 'px;margin:auto;width:80%;min-height:2px;"></div>';
+					echo '<div style="font-size:10px;color:#777;margin-top:4px;">' . esc_html( $pos ) . '</div>';
+					echo '</div>';
+				}
+				echo '</div>';
+			}
 		}
 
 		echo '</div>';
@@ -266,9 +367,17 @@ class Zymarg_Algolia_Dashboard {
 		$index     = zymarg_algolia_index_name( 'products' );
 
 		$data = array(
-			'top_searches' => array(),
-			'no_results'   => array(),
-			'_meta'        => array(
+			'top_searches'        => array(),
+			'no_results'          => array(),
+			'no_clicks'           => array(),
+			'ctr_rate'            => null,
+			'ctr_count'           => null,
+			'ctr_total'           => null,
+			'avg_click_position'  => null,
+			'click_positions'     => array(),
+			'search_volume_total' => null,
+			'search_volume_dates' => array(),
+			'_meta'               => array(
 				'fetched_at'  => time(),
 				'region'      => null,
 				'error'       => null,
@@ -319,6 +428,41 @@ class Zymarg_Algolia_Dashboard {
 				$data['_meta']['region']      = $region;
 				$data['_meta']['error']       = null;
 				$data['_meta']['http_status'] = $last_status;
+
+				// 1.0.16: fetch additional metrics from the same region — admin
+				// only, 30-min cached, never touches public-facing search.
+				$base_qs = '?index=' . rawurlencode( $index ) .
+					'&startDate=' . $start_date .
+					'&endDate=' . $end_date;
+
+				$nc = $this->fetch_analytics_json( $base_url, '/2/searches/noClicks' . $base_qs . '&limit=20', $app_id, $admin_key );
+				if ( is_array( $nc ) && isset( $nc['searches'] ) && is_array( $nc['searches'] ) ) {
+					$data['no_clicks'] = $nc['searches'];
+				}
+
+				$ctr = $this->fetch_analytics_json( $base_url, '/2/clicks/clickThroughRate' . $base_qs, $app_id, $admin_key );
+				if ( is_array( $ctr ) ) {
+					$data['ctr_rate']  = isset( $ctr['rate'] )               ? (float) $ctr['rate']               : null;
+					$data['ctr_count'] = isset( $ctr['clickCount'] )         ? (int)   $ctr['clickCount']         : null;
+					$data['ctr_total'] = isset( $ctr['trackedSearchCount'] ) ? (int)   $ctr['trackedSearchCount'] : null;
+				}
+
+				$avgPos = $this->fetch_analytics_json( $base_url, '/2/clicks/averageClickPosition' . $base_qs, $app_id, $admin_key );
+				if ( is_array( $avgPos ) && isset( $avgPos['average'] ) ) {
+					$data['avg_click_position'] = (float) $avgPos['average'];
+				}
+
+				$pos = $this->fetch_analytics_json( $base_url, '/2/clicks/positions' . $base_qs, $app_id, $admin_key );
+				if ( is_array( $pos ) && isset( $pos['positions'] ) && is_array( $pos['positions'] ) ) {
+					$data['click_positions'] = $pos['positions'];
+				}
+
+				$vol = $this->fetch_analytics_json( $base_url, '/2/searches/count' . $base_qs, $app_id, $admin_key );
+				if ( is_array( $vol ) ) {
+					$data['search_volume_total'] = isset( $vol['count'] ) ? (int) $vol['count'] : null;
+					$data['search_volume_dates'] = isset( $vol['dates'] ) && is_array( $vol['dates'] ) ? $vol['dates'] : array();
+				}
+
 				break;
 			}
 
@@ -392,6 +536,117 @@ class Zymarg_Algolia_Dashboard {
 			'status'   => 200,
 			'error'    => null,
 		);
+	}
+
+	/**
+	 * Generic Algolia Analytics GET that returns the full parsed JSON body
+	 * (or null on failure). Used for endpoints that don't return the
+	 * `{searches: [...]}` shape — clickThroughRate, positions, count, etc.
+	 *
+	 * @param string $base_url   e.g. https://analytics.algolia.com
+	 * @param string $path       Path + query string already appended.
+	 * @param string $app_id     Algolia App ID.
+	 * @param string $admin_key  Algolia Admin API Key.
+	 * @return array|null Parsed JSON body, or null if the request failed.
+	 */
+	protected function fetch_analytics_json( $base_url, $path, $app_id, $admin_key ) {
+		$response = wp_remote_get( $base_url . $path, array(
+			'timeout' => 15,
+			'headers' => array(
+				'X-Algolia-Application-Id' => $app_id,
+				'X-Algolia-API-Key'        => $admin_key,
+				'Accept'                   => 'application/json',
+				'User-Agent'               => 'ZymargAlgolia/' . ZYMARG_ALGOLIA_VERSION,
+			),
+		) );
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		return is_array( $body ) ? $body : null;
+	}
+
+	/**
+	 * Configuration health check (1.0.16+). Pure local — no API calls.
+	 * Returns an array of { level: ok|warn|error, label: string }.
+	 *
+	 * @param Zymarg_Algolia_Client $client Client.
+	 * @return array
+	 */
+	protected function get_health_checks( $client ) {
+		$checks = array();
+
+		$app_id     = zymarg_algolia_get_setting( 'app_id' );
+		$admin_key  = zymarg_algolia_get_setting( 'admin_api_key' );
+		$search_key = zymarg_algolia_get_setting( 'search_api_key' );
+
+		$checks[] = array(
+			'level' => $app_id ? 'ok' : 'error',
+			'label' => $app_id ? 'Algolia App ID configured' : 'Algolia App ID is missing',
+		);
+		$checks[] = array(
+			'level' => $admin_key ? 'ok' : 'error',
+			'label' => $admin_key ? 'Admin API Key configured' : 'Admin API Key is missing',
+		);
+		$checks[] = array(
+			'level' => $search_key ? 'ok' : 'error',
+			'label' => $search_key ? 'Search-Only API Key configured' : 'Search-Only API Key is missing',
+		);
+
+		$stats = $this->get_index_stats( $client );
+		foreach ( $stats as $name => $count ) {
+			$short = ucfirst( str_replace( zymarg_algolia_get_setting( 'index_prefix', 'zymarg_' ), '', $name ) );
+			if ( $count > 0 ) {
+				$checks[] = array( 'level' => 'ok', 'label' => $short . ' index has ' . number_format_i18n( $count ) . ' records' );
+			} else {
+				$checks[] = array( 'level' => 'warn', 'label' => $short . ' index is empty (run "Reindex everything")' );
+			}
+		}
+
+		$cta_mode = zymarg_algolia_get_setting( 'cta_mode', 'dropdown' );
+		$cta_label = $cta_mode === 'search_page'
+			? 'CTA mode: banner on search results page'
+			: ( $cta_mode === 'hidden' ? 'CTA mode: hidden everywhere' : 'CTA mode: in-dropdown (default)' );
+		$checks[] = array( 'level' => 'ok', 'label' => $cta_label );
+
+		$region = zymarg_algolia_get_setting( 'analytics_region', 'auto' );
+		$reg_label = $region === 'auto' ? 'auto-detect' : ( $region === 'eu' ? 'EU forced' : 'Global forced' );
+		$checks[] = array( 'level' => 'ok', 'label' => 'Analytics region: ' . $reg_label );
+
+		return $checks;
+	}
+
+	/**
+	 * Tiny inline-SVG sparkline. No charting library, zero deps.
+	 *
+	 * @param array $points  Numeric values (one per day).
+	 * @param int   $w       SVG width.
+	 * @param int   $h       SVG height.
+	 * @return string
+	 */
+	protected function render_sparkline( $points, $w = 110, $h = 28 ) {
+		$points = array_values( array_map( 'floatval', $points ) );
+		if ( count( $points ) < 2 ) {
+			return '';
+		}
+		$max = max( $points );
+		$min = min( $points );
+		if ( $max == $min ) {
+			$max = $min + 1;
+		}
+		$step = ( count( $points ) > 1 ) ? ( $w / ( count( $points ) - 1 ) ) : $w;
+		$d = '';
+		foreach ( $points as $i => $v ) {
+			$x = $i * $step;
+			$y = $h - ( ( $v - $min ) / ( $max - $min ) ) * ( $h - 2 ) - 1;
+			$d .= ( $i === 0 ? 'M' : 'L' ) . round( $x, 1 ) . ',' . round( $y, 1 ) . ' ';
+		}
+		return '<svg viewBox="0 0 ' . $w . ' ' . $h . '" width="' . $w . '" height="' . $h . '" style="display:block;margin-top:4px;">' .
+			'<path d="' . esc_attr( $d ) . '" fill="none" stroke="#7B3FE4" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />' .
+		'</svg>';
 	}
 
 	/* ---------------------------------------------------------------------- */

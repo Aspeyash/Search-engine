@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.15
+Stable tag: 1.0.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,20 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.16 =
+* **New: Search analytics dashboard upgrade** — six new admin-only metrics in the WP Dashboard widget, all built on top of Algolia's existing Analytics API. Zero impact on public site speed or search performance (admin-only code, 30-min cached, never loaded on the frontend).
+* **Stat cards row at top of widget:**
+  * **Searches (7d)** with inline SVG sparkline showing daily volume trend
+  * **Click-through rate** (% of searches that led to a click) with click count / search count breakdown
+  * **Avg click position** (lower = more relevant top results)
+  * **No-click queries** count
+* **New table: "Searches With No Clicks (Last 7 Days)"** — searches that returned hits but nobody clicked. Far more actionable than the zero-results table because it pinpoints where titles, photos, or prices need work.
+* **New chart: "Click Position Distribution"** — inline SVG bar chart showing which result slot (1, 2, 3, ...) gets the most clicks. Most clicks at position 1-3 = top results are highly relevant. Mostly position 4+ = ranking needs work.
+* **New: "Health check" expandable panel** — purely local checks (no API calls): App ID configured, Admin/Search keys configured, each index has records (warns when empty), CTA mode in use, analytics region setting. Spot misconfigurations at a glance.
+* **Internal:** new `fetch_analytics_json()` helper for Algolia Analytics endpoints with non-search-shaped JSON responses; new `get_health_checks()` and `render_sparkline()` methods. All three endpoints (no-clicks, click-through-rate, avg-click-position, click-positions, search-volume-count) reuse the same multi-region detection from v1.0.14 — no extra region probing.
+* **Backwards compatible:** existing dashboard layout unchanged; new sections appear above and below; cache key bumped to `_v2` to force a fresh fetch on first install.
+* **Zero changes to public-facing JS / CSS / search behavior.**
 
 = 1.0.15 =
 * **New: Result count badge** — every dropdown now shows the total number of matches at the top (e.g., "231 results") plus per-section counts (Products (12), Categories (3)). Frames the response so users know there's more to explore.
