@@ -128,6 +128,7 @@ class Zymarg_Algolia_Frontend {
 	 *   - 'showProducts'   (bool, default true)  — render the Products section.
 	 *   - 'showCategories' (bool, default true)  — render the Categories section.
 	 *   - 'showVendors'    (bool, default false) — render the Vendors section.
+	 *   - 'spinnerMode'    (string, default 'searching') — 'searching' | 'focus' | 'hidden'.
 	 *
 	 * Section visibility is passed to the JS via data attributes on the
 	 * wrapper. The JS then skips the API call for any hidden section and
@@ -158,6 +159,12 @@ class Zymarg_Algolia_Frontend {
 		$show_categories = ! array_key_exists( 'showCategories', $args ) || ! empty( $args['showCategories'] );
 		$show_vendors    = ! empty( $args['showVendors'] );
 
+		// 1.0.17: loading-spinner mode (per-instance).
+		$spinner_mode = isset( $args['spinnerMode'] ) ? (string) $args['spinnerMode'] : 'searching';
+		if ( ! in_array( $spinner_mode, array( 'searching', 'focus', 'hidden' ), true ) ) {
+			$spinner_mode = 'searching';
+		}
+
 		$classes = array( 'zymarg-algolia-wrapper' );
 		if ( $stretch )     $classes[] = 'zymarg-stretch';
 		if ( $no_dropdown ) $classes[] = 'zymarg-no-dropdown';
@@ -169,7 +176,8 @@ class Zymarg_Algolia_Frontend {
 		// Section visibility flags as data attributes; JS reads these per wrapper.
 		$data_attrs = ' data-show-products="' . ( $show_products ? '1' : '0' ) . '"' .
 			' data-show-categories="' . ( $show_categories ? '1' : '0' ) . '"' .
-			' data-show-vendors="' . ( $show_vendors ? '1' : '0' ) . '"';
+			' data-show-vendors="' . ( $show_vendors ? '1' : '0' ) . '"' .
+			' data-spinner-mode="' . esc_attr( $spinner_mode ) . '"';
 
 		ob_start();
 		?>

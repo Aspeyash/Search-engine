@@ -21,7 +21,7 @@
 ;(function () {
 	'use strict';
 
-	var VERSION = '1.0.15';
+	var VERSION = '1.0.17';
 
 	/* ---------------------------------------------------------------- */
 	/* Local-storage helpers (recent searches + anonymous user token).  */
@@ -421,6 +421,15 @@
 		var showCategories = wrapper.getAttribute('data-show-categories') !== '0';
 		var showVendors    = wrapper.getAttribute('data-show-vendors')    === '1';
 
+		// 1.0.17: loading-spinner visibility mode.
+		//   'searching' (default) — show only during the API call (existing behavior)
+		//   'focus'               — show the moment the user touches/focuses the bar
+		//   'hidden'              — never show
+		var spinnerMode = wrapper.getAttribute('data-spinner-mode') || 'searching';
+		if (spinnerMode !== 'searching' && spinnerMode !== 'focus' && spinnerMode !== 'hidden') {
+			spinnerMode = 'searching';
+		}
+
 		// Empty-state CTA from settings.
 		var emptyText = emptyBox.querySelector('.zymarg-algolia-empty-text');
 		var emptyBtn  = emptyBox.querySelector('.zymarg-algolia-empty-btn');
@@ -439,7 +448,10 @@
 			emptyBox.hidden   = true;
 			loadingBox.hidden = true;
 		};
-		var showLoading = function () { loadingBox.hidden = false; };
+		var showLoading = function () {
+			if (spinnerMode === 'hidden') return;
+			loadingBox.hidden = false;
+		};
 		var hideLoading = function () { loadingBox.hidden = true; };
 
 		var renderEmpty = function () {
@@ -838,6 +850,13 @@
 		input.addEventListener('change',         debounced);
 		input.addEventListener('focus', function () {
 			var q = (input.value || '').trim();
+			// 'focus' mode: show the spinner the moment the bar is touched.
+			// It will be hidden again by closeDropdown (click-outside / Esc /
+			// submit) or by hideLoading inside the search response handler.
+			if (spinnerMode === 'focus') {
+				showLoading();
+				openDropdown();
+			}
 			if (q) {
 				search(q);
 			} else {

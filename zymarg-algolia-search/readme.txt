@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.16
+Stable tag: 1.0.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,18 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.17 =
+* **New: Loading spinner mode setting** — pick when (or if) the small purple spinner appears inside the search dropdown. Three options:
+  * **While searching (default)** — current behavior, spinner shows only during the brief moment Algolia is fetching results.
+  * **On focus** — spinner shows the moment the user clicks/taps the search bar, hides when the dropdown closes (or when results render).
+  * **Always hidden** — spinner never appears, regardless of state.
+* The setting is per-instance (different ZYMARG Search widgets on the same site can have different spinner modes), available in:
+  * Elementor widget -> Content tab -> "Loading spinner" select
+  * Gutenberg block sidebar -> "Content" panel -> "Loading spinner" select
+  * Appearance -> Widgets -> ZYMARG Search -> "Loading spinner" select
+* **Internal CSS plumbing fix:** added `.zymarg-algolia-loading[hidden] { display: none !important; }` so the JS visibility control on the spinner element actually takes effect. Without this rule, our class selector's `display: flex` was tying with -- and shadowing -- the browser's `[hidden]{display:none}` user-agent rule, making "Always hidden" mode (and the brief hide between API calls) impossible. One-line CSS fix; no behavior change for the default mode.
+* **No public-facing JS or CSS changes** beyond the new spinner mode handling. Search performance is unchanged.
 
 = 1.0.16 =
 * **New: Search analytics dashboard upgrade** — six new admin-only metrics in the WP Dashboard widget, all built on top of Algolia's existing Analytics API. Zero impact on public site speed or search performance (admin-only code, 30-min cached, never loaded on the frontend).

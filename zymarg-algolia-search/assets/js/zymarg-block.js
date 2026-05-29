@@ -45,6 +45,7 @@
 	var TextControl        = components.TextControl;
 	var RangeControl       = components.RangeControl;
 	var ToggleControl      = components.ToggleControl;
+	var SelectControl      = components.SelectControl;
 
 	registerBlockType('zymarg/algolia-search', {
 		apiVersion:  2,
@@ -185,6 +186,17 @@
 						help:     __('Fills 100% of the immediate parent.', 'zymarg-algolia'),
 						checked:  !!atts.stretch,
 						onChange: function (v) { setAtts({ stretch: !!v }); }
+					}) : null,
+					SelectControl ? el(SelectControl, {
+						label:    __('Loading spinner', 'zymarg-algolia'),
+						help:     __('When the small purple spinner appears in the dropdown.', 'zymarg-algolia'),
+						value:    atts.spinnerMode || 'searching',
+						options: [
+							{ label: __('While searching (default)',                  'zymarg-algolia'), value: 'searching' },
+							{ label: __('On focus (the moment the bar is touched)',   'zymarg-algolia'), value: 'focus'     },
+							{ label: __('Always hidden',                              'zymarg-algolia'), value: 'hidden'    }
+						],
+						onChange: function (v) { setAtts({ spinnerMode: v || 'searching' }); }
 					}) : null
 				);
 

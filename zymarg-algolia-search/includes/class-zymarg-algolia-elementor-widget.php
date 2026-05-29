@@ -146,6 +146,21 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'spinner_mode',
+			array(
+				'label'       => __( 'Loading spinner', 'zymarg-algolia' ),
+				'description' => __( 'When the small purple spinner appears inside the search dropdown.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SELECT,
+				'default'     => 'searching',
+				'options'     => array(
+					'searching' => __( 'While searching (default)', 'zymarg-algolia' ),
+					'focus'     => __( 'On focus (the moment the bar is touched)', 'zymarg-algolia' ),
+					'hidden'    => __( 'Always hidden', 'zymarg-algolia' ),
+				),
+			)
+		);
+
+		$this->add_control(
 			'stretch',
 			array(
 				'label'        => __( 'Stretch to full container width', 'zymarg-algolia' ),
@@ -878,6 +893,12 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$show_categories = ! isset( $settings['show_categories_section'] ) || 'yes' === $settings['show_categories_section'];
 		$show_vendors    = isset( $settings['show_vendors_section'] ) && 'yes' === $settings['show_vendors_section'];
 
+		// Loading spinner mode (1.0.17). Default: 'searching' (current behavior).
+		$spinner_mode = isset( $settings['spinner_mode'] ) ? (string) $settings['spinner_mode'] : 'searching';
+		if ( ! in_array( $spinner_mode, array( 'searching', 'focus', 'hidden' ), true ) ) {
+			$spinner_mode = 'searching';
+		}
+
 		if ( '' !== $placeholder ) {
 			add_filter(
 				'zymarg_algolia_placeholder',
@@ -896,6 +917,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			'showProducts'   => $show_products,
 			'showCategories' => $show_categories,
 			'showVendors'    => $show_vendors,
+			'spinnerMode'    => $spinner_mode,
 		) );
 	}
 }

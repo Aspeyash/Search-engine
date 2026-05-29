@@ -76,6 +76,8 @@ class Zymarg_Algolia_Block {
 					'showProducts'       => array( 'type' => 'boolean', 'default' => true ),
 					'showCategories'     => array( 'type' => 'boolean', 'default' => true ),
 					'showVendors'        => array( 'type' => 'boolean', 'default' => false ),
+					// 1.0.17: spinner mode — 'searching' | 'focus' | 'hidden'.
+					'spinnerMode'        => array( 'type' => 'string', 'default' => 'searching' ),
 					'maxWidth'           => array( 'type' => 'number' ),
 					'inputHeight'        => array( 'type' => 'number' ),
 					'fontSize'           => array( 'type' => 'number' ),
@@ -148,6 +150,12 @@ class Zymarg_Algolia_Block {
 		$show_products   = ! array_key_exists( 'showProducts', $attrs )   || false !== $attrs['showProducts'];
 		$show_categories = ! array_key_exists( 'showCategories', $attrs ) || false !== $attrs['showCategories'];
 		$show_vendors    = ! empty( $attrs['showVendors'] );
+
+		// 1.0.17: spinner mode.
+		$spinner_mode = isset( $attrs['spinnerMode'] ) ? (string) $attrs['spinnerMode'] : 'searching';
+		if ( ! in_array( $spinner_mode, array( 'searching', 'focus', 'hidden' ), true ) ) {
+			$spinner_mode = 'searching';
+		}
 
 		// Build inline `style="..."` of CSS variables (cascade to inner wrapper).
 		$vars = array();
@@ -226,6 +234,7 @@ class Zymarg_Algolia_Block {
 				'showProducts'   => $show_products,
 				'showCategories' => $show_categories,
 				'showVendors'    => $show_vendors,
+				'spinnerMode'    => $spinner_mode,
 			) ) .
 			'</div>';
 	}
@@ -334,6 +343,11 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 		$show_categories = ! isset( $instance['show_categories'] ) || ! empty( $instance['show_categories'] );
 		$show_vendors    = ! empty( $instance['show_vendors'] );
 
+		$spinner_mode = isset( $instance['spinner_mode'] ) ? (string) $instance['spinner_mode'] : 'searching';
+		if ( ! in_array( $spinner_mode, array( 'searching', 'focus', 'hidden' ), true ) ) {
+			$spinner_mode = 'searching';
+		}
+
 		if ( $placeholder ) {
 			$ph = (string) $placeholder;
 			add_filter(
@@ -357,6 +371,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 			'showProducts'   => $show_products,
 			'showCategories' => $show_categories,
 			'showVendors'    => $show_vendors,
+			'spinnerMode'    => $spinner_mode,
 		) );
 		echo $args['after_widget']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
@@ -419,6 +434,19 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 			</label>
 		</p>
 		<p>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'spinner_mode' ) ); ?>">
+				<?php esc_html_e( 'Loading spinner:', 'zymarg-algolia' ); ?>
+			</label>
+			<?php $sm = isset( $instance['spinner_mode'] ) ? $instance['spinner_mode'] : 'searching'; ?>
+			<select class="widefat"
+				id="<?php echo esc_attr( $this->get_field_id( 'spinner_mode' ) ); ?>"
+				name="<?php echo esc_attr( $this->get_field_name( 'spinner_mode' ) ); ?>">
+				<option value="searching" <?php selected( 'searching', $sm ); ?>><?php esc_html_e( 'While searching (default)', 'zymarg-algolia' ); ?></option>
+				<option value="focus" <?php selected( 'focus', $sm ); ?>><?php esc_html_e( 'On focus (the moment the bar is touched)', 'zymarg-algolia' ); ?></option>
+				<option value="hidden" <?php selected( 'hidden', $sm ); ?>><?php esc_html_e( 'Always hidden', 'zymarg-algolia' ); ?></option>
+			</select>
+		</p>
+		<p>
 			<input id="<?php echo esc_attr( $this->get_field_id( 'show_dropdown' ) ); ?>"
 				name="<?php echo esc_attr( $this->get_field_name( 'show_dropdown' ) ); ?>"
 				type="checkbox" value="1" <?php checked( $show_dd, true ); ?> />
@@ -462,6 +490,10 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 	}
 
 	public function update( $new_instance, $old_instance ) {
+		$sm = isset( $new_instance['spinner_mode'] ) ? (string) $new_instance['spinner_mode'] : 'searching';
+		if ( ! in_array( $sm, array( 'searching', 'focus', 'hidden' ), true ) ) {
+			$sm = 'searching';
+		}
 		return array(
 			'title'           => isset( $new_instance['title'] ) ? sanitize_text_field( $new_instance['title'] ) : '',
 			'placeholder'     => isset( $new_instance['placeholder'] ) ? sanitize_text_field( $new_instance['placeholder'] ) : '',
@@ -473,6 +505,7 @@ class Zymarg_Algolia_Classic_Widget extends WP_Widget {
 			'show_products'   => ! empty( $new_instance['show_products'] ) ? 1 : 0,
 			'show_categories' => ! empty( $new_instance['show_categories'] ) ? 1 : 0,
 			'show_vendors'    => ! empty( $new_instance['show_vendors'] ) ? 1 : 0,
+			'spinner_mode'    => $sm,
 		);
 	}
 }

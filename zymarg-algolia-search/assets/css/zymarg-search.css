@@ -315,6 +315,13 @@ input.zymarg-algolia-input[type="search"] {
 	display: flex;
 	justify-content: center;
 }
+/* 1.0.17: respect the `hidden` HTML attribute. Without this rule, the
+   class selector above wins over the user-agent `[hidden]{display:none}`
+   rule (equal specificity, last-declared wins) and the spinner can never
+   actually hide. With this, `loadingBox.hidden = true` works as expected. */
+.zymarg-algolia-loading[hidden] {
+	display: none !important;
+}
 .zymarg-algolia-spinner {
 	width: 22px; height: 22px;
 	border: 2.5px solid var(--zymarg-purple-50);
