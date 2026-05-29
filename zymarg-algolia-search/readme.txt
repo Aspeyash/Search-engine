@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.13
+Stable tag: 1.0.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,12 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 1.0.14 =
+* **Fix:** Dashboard analytics widget now finds your data when your Algolia cluster is in the EU region (Germany, France, UK, etc). Algolia segregates analytics by region — apps on EU clusters are served from `analytics.de.algolia.com`, not the global `analytics.algolia.com`. The plugin previously only queried the global endpoint, which silently returns HTTP 200 with an empty `searches` array for EU apps. Now the dashboard tries both endpoints automatically (Global first, EU fallback) and locks onto whichever returns data.
+* **New:** "Analytics region" setting in **Settings → ZYMARG Algolia → Search behavior** with three options: Auto-detect (default), Global / US, EU / Germany / UK. Most users should leave it on Auto-detect.
+* **New:** Diagnostic footer at the bottom of the dashboard widget showing which Algolia analytics region was used, the last fetch time, and any API error message — so future analytics issues are obvious instead of silent.
+* **No JS changes** in this release.
 
 = 1.0.13 =
 * **Typography:** plugin now uses **Cabinet Grotesk** for headings (section titles in dropdown, "Couldn't find" message, banner heading) and **Inter** for body text (input, hit titles, prices, buttons, links). Both are referenced **by name only** — no `@font-face`, no Google Fonts request, zero external HTTP. Your theme is responsible for loading the actual font files; if it doesn't, the plugin falls back to Inter, then to system fonts (`system-ui`, `-apple-system`, `BlinkMacSystemFont`, `'Segoe UI'`, `Roboto`).

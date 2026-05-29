@@ -75,6 +75,11 @@ class Zymarg_Algolia_Settings {
 			? $input['cta_mode']
 			: 'dropdown';
 
+		// Analytics region (1.0.14). Auto tries Global first then EU.
+		$out['analytics_region'] = isset( $input['analytics_region'] ) && in_array( $input['analytics_region'], array( 'auto', 'global', 'eu' ), true )
+			? $input['analytics_region']
+			: 'auto';
+
 		$out['cta_max_width']     = isset( $input['cta_max_width'] )     ? max( 100, min( 2400, absint( $input['cta_max_width'] ) ) )     : 800;
 		$out['cta_padding_y']     = isset( $input['cta_padding_y'] )     ? max( 0,   min( 200, absint( $input['cta_padding_y'] ) ) )     : 32;
 		$out['cta_padding_x']     = isset( $input['cta_padding_x'] )     ? max( 0,   min( 200, absint( $input['cta_padding_x'] ) ) )     : 32;
@@ -220,6 +225,22 @@ class Zymarg_Algolia_Settings {
 								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[auto_index]" value="1"
 									<?php checked( ! empty( $settings['auto_index'] ) ); ?> /> Re-index when products/vendors/categories change
 							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_analytics_region">Analytics region</label></th>
+						<td>
+							<?php $region = isset( $settings['analytics_region'] ) ? $settings['analytics_region'] : 'auto'; ?>
+							<select name="<?php echo esc_attr( self::OPTION ); ?>[analytics_region]" id="zymarg_analytics_region">
+								<option value="auto"   <?php selected( 'auto',   $region ); ?>>Auto-detect (try Global, fall back to EU)</option>
+								<option value="global" <?php selected( 'global', $region ); ?>>Global / US (analytics.algolia.com)</option>
+								<option value="eu"     <?php selected( 'eu',     $region ); ?>>EU / Germany / UK (analytics.de.algolia.com)</option>
+							</select>
+							<p class="description">
+								Algolia analytics is segregated by cluster region. If your Algolia cluster is in the UK, Germany, France or any EU region, choose <strong>EU</strong>.
+								If you're not sure, pick <strong>Auto-detect</strong> — the dashboard will probe both endpoints and use whichever returns data.
+								Check your cluster region in the <a href="https://dashboard.algolia.com/account/applications/" target="_blank" rel="noopener">Algolia dashboard → Applications</a> column "Cluster".
+							</p>
 						</td>
 					</tr>
 				</table>
