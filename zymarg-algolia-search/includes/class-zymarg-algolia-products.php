@@ -172,6 +172,41 @@ class Zymarg_Algolia_Products extends Zymarg_Algolia_Indexer {
 		$on_sale       = $product->is_on_sale();
 		$price_html    = wp_strip_all_tags( wc_price( $price ) );
 
+		// Min/max variation prices (variable products only). WooCommerce keeps
+		// these as `_min_price` / `_max_price` postmeta after saving variations.
+		$product_type        = $product->get_type();
+		$min_variation_price = null;
+		$max_variation_price = null;
+		if ( 'variable' === $product_type ) {
+			$min_meta = $product->get_meta( '_min_price' );
+			$max_meta = $product->get_meta( '_max_price' );
+			if ( '' === $min_meta || null === $min_meta ) {
+				$min_meta = get_post_meta( $post_id, '_min_price', true );
+			}
+			if ( '' === $max_meta || null === $max_meta ) {
+				$max_meta = get_post_meta( $post_id, '_max_price', true );
+			}
+			$min_variation_price = ( '' !== $min_meta && null !== $min_meta ) ? (float) $min_meta : null;
+			$max_variation_price = ( '' !== $max_meta && null !== $max_meta ) ? (float) $max_meta : null;
+		}
+
+		// Stock quantity (null when stock isn't being managed).
+		$stock_qty_raw  = $product->get_stock_quantity();
+		$stock_quantity = ( null !== $stock_qty_raw && '' !== $stock_qty_raw ) ? (int) $stock_qty_raw : null;
+
+		// Total sales — prefer the WC product meta lookup table (faster, kept in
+		// sync by Woo) and fall back to the legacy `total_sales` postmeta.
+		$total_sales = 0;
+		global $wpdb;
+		$lookup_table = isset( $wpdb->wc_product_meta_lookup ) ? $wpdb->wc_product_meta_lookup : $wpdb->prefix . 'wc_product_meta_lookup';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$lookup_value = $wpdb->get_var( $wpdb->prepare( "SELECT total_sales FROM {$lookup_table} WHERE product_id = %d", (int) $post_id ) );
+		if ( null !== $lookup_value && '' !== $lookup_value ) {
+			$total_sales = (int) $lookup_value;
+		} else {
+			$total_sales = (int) get_post_meta( $post_id, 'total_sales', true );
+		}
+
 		// Attributes (size, color, etc).
 		$attributes = array();
 		foreach ( $product->get_attributes() as $attr ) {
@@ -204,14 +239,17 @@ class Zymarg_Algolia_Products extends Zymarg_Algolia_Indexer {
 			'currency'         => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : '',
 			'stock_status'     => $product->get_stock_status(),
 			'in_stock'         => $product->is_in_stock(),
-			'product_type'     => $product->get_type(),
+			'stock_quantity'   => $stock_quantity,
+			'product_type'     => $product_type,
+			'min_variation_price' => $min_variation_price,
+			'max_variation_price' => $max_variation_price,
 			'categories'       => $cats,
 			'category_ids'     => $cat_ids,
 			'tags'             => $tags,
 			'attributes'       => $attributes,
 			'average_rating'   => (float) $product->get_average_rating(),
 			'review_count'     => (int) $product->get_review_count(),
-			'total_sales'      => (int) get_post_meta( $post_id, 'total_sales', true ),
+			'total_sales'      => $total_sales,
 			'vendor_id'        => $vendor_id,
 			'vendor_name'      => $vendor_name,
 			'vendor_url'       => $vendor_url,

@@ -70,7 +70,53 @@ class Zymarg_Algolia_Settings {
 		$langs = array_filter( array_map( 'sanitize_key', $langs ) );
 		$out['languages'] = ! empty( $langs ) ? array_values( array_unique( $langs ) ) : array( 'en', 'bn' );
 
+		// CTA placement (1.0.12).
+		$out['cta_mode'] = isset( $input['cta_mode'] ) && in_array( $input['cta_mode'], array( 'dropdown', 'search_page', 'hidden' ), true )
+			? $input['cta_mode']
+			: 'dropdown';
+
+		// Analytics region (1.0.14). Auto tries Global first then EU.
+		$out['analytics_region'] = isset( $input['analytics_region'] ) && in_array( $input['analytics_region'], array( 'auto', 'global', 'eu' ), true )
+			? $input['analytics_region']
+			: 'auto';
+
+		$out['cta_max_width']     = isset( $input['cta_max_width'] )     ? max( 100, min( 2400, absint( $input['cta_max_width'] ) ) )     : 800;
+		$out['cta_padding_y']     = isset( $input['cta_padding_y'] )     ? max( 0,   min( 200, absint( $input['cta_padding_y'] ) ) )     : 32;
+		$out['cta_padding_x']     = isset( $input['cta_padding_x'] )     ? max( 0,   min( 200, absint( $input['cta_padding_x'] ) ) )     : 32;
+		$out['cta_margin_top']    = isset( $input['cta_margin_top'] )    ? max( 0,   min( 400, absint( $input['cta_margin_top'] ) ) )    : 40;
+		$out['cta_margin_bottom'] = isset( $input['cta_margin_bottom'] ) ? max( 0,   min( 400, absint( $input['cta_margin_bottom'] ) ) ) : 40;
+		$out['cta_radius']        = isset( $input['cta_radius'] )        ? max( 0,   min( 100, absint( $input['cta_radius'] ) ) )        : 14;
+		$out['cta_text_size']     = isset( $input['cta_text_size'] )     ? max( 8,   min( 60,  absint( $input['cta_text_size'] ) ) )     : 18;
+		$out['cta_btn_size']      = isset( $input['cta_btn_size'] )      ? max( 8,   min( 60,  absint( $input['cta_btn_size'] ) ) )      : 16;
+		$out['cta_bg']            = $this->sanitize_color_field( isset( $input['cta_bg'] )         ? $input['cta_bg']         : '', '#ffffff' );
+		$out['cta_text_color']    = $this->sanitize_color_field( isset( $input['cta_text_color'] ) ? $input['cta_text_color'] : '', '#1a1a1a' );
+		$out['cta_btn_bg']        = $this->sanitize_color_field( isset( $input['cta_btn_bg'] )     ? $input['cta_btn_bg']     : '', '#7B3FE4' );
+		$out['cta_btn_color']     = $this->sanitize_color_field( isset( $input['cta_btn_color'] )  ? $input['cta_btn_color']  : '', '#ffffff' );
+
+		$out['cta_align'] = isset( $input['cta_align'] ) && in_array( $input['cta_align'], array( 'left', 'center', 'right' ), true )
+			? $input['cta_align']
+			: 'center';
+
 		return $out;
+	}
+
+	/**
+	 * Sanitize a hex color (with or without '#') or fall back to default.
+	 *
+	 * @param string $value   Raw input.
+	 * @param string $default Fallback color when input is invalid.
+	 * @return string
+	 */
+	protected function sanitize_color_field( $value, $default = '#ffffff' ) {
+		$value = is_string( $value ) ? trim( $value ) : '';
+		if ( '' === $value ) {
+			return $default;
+		}
+		// Allow #rgb, #rgba, #rrggbb, #rrggbbaa.
+		if ( preg_match( '/^#?([a-fA-F0-9]{3}|[a-fA-F0-9]{4}|[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$/', $value, $m ) ) {
+			return '#' . ltrim( $value, '#' );
+		}
+		return $default;
 	}
 
 	public function render() {
@@ -181,6 +227,22 @@ class Zymarg_Algolia_Settings {
 							</label>
 						</td>
 					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_analytics_region">Analytics region</label></th>
+						<td>
+							<?php $region = isset( $settings['analytics_region'] ) ? $settings['analytics_region'] : 'auto'; ?>
+							<select name="<?php echo esc_attr( self::OPTION ); ?>[analytics_region]" id="zymarg_analytics_region">
+								<option value="auto"   <?php selected( 'auto',   $region ); ?>>Auto-detect (try Global, fall back to EU)</option>
+								<option value="global" <?php selected( 'global', $region ); ?>>Global / US (analytics.algolia.com)</option>
+								<option value="eu"     <?php selected( 'eu',     $region ); ?>>EU / Germany / UK (analytics.de.algolia.com)</option>
+							</select>
+							<p class="description">
+								Algolia analytics is segregated by cluster region. If your Algolia cluster is in the UK, Germany, France or any EU region, choose <strong>EU</strong>.
+								If you're not sure, pick <strong>Auto-detect</strong> — the dashboard will probe both endpoints and use whichever returns data.
+								Check your cluster region in the <a href="https://dashboard.algolia.com/account/applications/" target="_blank" rel="noopener">Algolia dashboard → Applications</a> column "Cluster".
+							</p>
+						</td>
+					</tr>
 				</table>
 
 				<h2 class="title">No-results CTA</h2>
@@ -215,6 +277,176 @@ class Zymarg_Algolia_Settings {
 					</tr>
 				</table>
 
+				<h2 class="title">CTA placement</h2>
+				<p class="description">Choose <em>where</em> the "Couldn't find / Request Here" call-to-action shows up. The Message and Button label above are reused across all three modes.</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">Display mode</th>
+						<td>
+							<fieldset>
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[cta_mode]" value="dropdown"
+										<?php checked( 'dropdown', $settings['cta_mode'] ); ?> />
+									<strong>Show in dropdown</strong> (only when zero results match — current default)
+								</label>
+								<br>
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[cta_mode]" value="search_page"
+										<?php checked( 'search_page', $settings['cta_mode'] ); ?> />
+									<strong>Show on the search results page</strong> (banner below WP search results, always visible)
+								</label>
+								<br>
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[cta_mode]" value="hidden"
+										<?php checked( 'hidden', $settings['cta_mode'] ); ?> />
+									<strong>Hidden everywhere</strong> (completely disabled)
+								</label>
+							</fieldset>
+							<p class="description">When "Show on the search results page" is selected, the dropdown CTA is automatically hidden so the user only sees one CTA at a time.</p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 class="title">Banner styling (search-results-page mode)</h2>
+				<p class="description">All values below only take effect when "Show on the search results page" is selected above. You can also place the banner manually anywhere with the shortcode <code>[zymarg_search_cta]</code> — useful on Elementor Pro custom search templates.</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="zymarg_cta_max_width">Max width (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_max_width]"
+								id="zymarg_cta_max_width" min="100" max="2400" step="10"
+								value="<?php echo esc_attr( $settings['cta_max_width'] ); ?>" /> px
+							<p class="description">Banner content area width. Set to 2400 for full-width if your container is wider.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_padding_y">Vertical padding (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_padding_y]"
+								id="zymarg_cta_padding_y" min="0" max="200" step="1"
+								value="<?php echo esc_attr( $settings['cta_padding_y'] ); ?>" /> px
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_padding_x">Horizontal padding (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_padding_x]"
+								id="zymarg_cta_padding_x" min="0" max="200" step="1"
+								value="<?php echo esc_attr( $settings['cta_padding_x'] ); ?>" /> px
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_margin_top">Margin top (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_margin_top]"
+								id="zymarg_cta_margin_top" min="0" max="400" step="1"
+								value="<?php echo esc_attr( $settings['cta_margin_top'] ); ?>" /> px
+							<p class="description">Space between the search results and the top of the banner.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_margin_bottom">Margin bottom (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_margin_bottom]"
+								id="zymarg_cta_margin_bottom" min="0" max="400" step="1"
+								value="<?php echo esc_attr( $settings['cta_margin_bottom'] ); ?>" /> px
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_radius">Border radius (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_radius]"
+								id="zymarg_cta_radius" min="0" max="100" step="1"
+								value="<?php echo esc_attr( $settings['cta_radius'] ); ?>" /> px
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Alignment</th>
+						<td>
+							<fieldset>
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[cta_align]" value="left"
+										<?php checked( 'left', $settings['cta_align'] ); ?> /> Left
+								</label>
+								&nbsp;
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[cta_align]" value="center"
+										<?php checked( 'center', $settings['cta_align'] ); ?> /> Center
+								</label>
+								&nbsp;
+								<label>
+									<input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[cta_align]" value="right"
+										<?php checked( 'right', $settings['cta_align'] ); ?> /> Right
+								</label>
+							</fieldset>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_text_size">Message text size (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_text_size]"
+								id="zymarg_cta_text_size" min="8" max="60" step="1"
+								value="<?php echo esc_attr( $settings['cta_text_size'] ); ?>" /> px
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_btn_size">Button text size (px)</label></th>
+						<td>
+							<input type="number" name="<?php echo esc_attr( self::OPTION ); ?>[cta_btn_size]"
+								id="zymarg_cta_btn_size" min="8" max="60" step="1"
+								value="<?php echo esc_attr( $settings['cta_btn_size'] ); ?>" /> px
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_bg">Banner background</label></th>
+						<td>
+							<input type="text" name="<?php echo esc_attr( self::OPTION ); ?>[cta_bg]"
+								id="zymarg_cta_bg" class="regular-text"
+								value="<?php echo esc_attr( $settings['cta_bg'] ); ?>"
+								placeholder="#ffffff" />
+							<input type="color"
+								value="<?php echo esc_attr( $settings['cta_bg'] ); ?>"
+								oninput="document.getElementById('zymarg_cta_bg').value=this.value" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_text_color">Message text color</label></th>
+						<td>
+							<input type="text" name="<?php echo esc_attr( self::OPTION ); ?>[cta_text_color]"
+								id="zymarg_cta_text_color" class="regular-text"
+								value="<?php echo esc_attr( $settings['cta_text_color'] ); ?>"
+								placeholder="#1a1a1a" />
+							<input type="color"
+								value="<?php echo esc_attr( $settings['cta_text_color'] ); ?>"
+								oninput="document.getElementById('zymarg_cta_text_color').value=this.value" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_btn_bg">Button background</label></th>
+						<td>
+							<input type="text" name="<?php echo esc_attr( self::OPTION ); ?>[cta_btn_bg]"
+								id="zymarg_cta_btn_bg" class="regular-text"
+								value="<?php echo esc_attr( $settings['cta_btn_bg'] ); ?>"
+								placeholder="#7B3FE4" />
+							<input type="color"
+								value="<?php echo esc_attr( $settings['cta_btn_bg'] ); ?>"
+								oninput="document.getElementById('zymarg_cta_btn_bg').value=this.value" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="zymarg_cta_btn_color">Button text color</label></th>
+						<td>
+							<input type="text" name="<?php echo esc_attr( self::OPTION ); ?>[cta_btn_color]"
+								id="zymarg_cta_btn_color" class="regular-text"
+								value="<?php echo esc_attr( $settings['cta_btn_color'] ); ?>"
+								placeholder="#ffffff" />
+							<input type="color"
+								value="<?php echo esc_attr( $settings['cta_btn_color'] ); ?>"
+								oninput="document.getElementById('zymarg_cta_btn_color').value=this.value" />
+						</td>
+					</tr>
+				</table>
+
 				<?php submit_button( 'Save settings' ); ?>
 			</form>
 
@@ -230,14 +462,14 @@ class Zymarg_Algolia_Settings {
 				</a>
 			</p>
 
-			<h2 class="title">How to use</h2>
+			<h2 class="title">How to add the search bar</h2>
+			<p>Pick whichever method matches the page builder you use. <strong>No shortcode required</strong> — that's only kept for backwards compatibility.</p>
 			<ol>
-				<li>Save credentials above.</li>
-				<li>Click <em>Verify connection</em>, then <em>Reindex everything now</em>.</li>
-				<li>Add the search bar to your header in Elementor with the shortcode
-					<code>[zymarg_algolia_search]</code> or place the widget block.</li>
-				<li>It also auto-replaces the WooCommerce <code>[wcsearch]</code>-style search if you
-					prefer to drop the shortcode into your Astra header.</li>
+				<li>First, save credentials above, click <em>Verify connection</em>, then <em>Reindex everything now</em>.</li>
+				<li><strong>Elementor (recommended for Astra header):</strong> open your header template, search the panel for <em>"ZYMARG Search"</em> (under the <em>ZYMARG</em> category), and drag it into the header. The search bar shows live in the editor — no need to publish to see it.</li>
+				<li><strong>Gutenberg / Site Editor:</strong> click the <em>+</em> inserter, search <em>"ZYMARG Search"</em>, click to drop it in. Use the sidebar to set a custom placeholder.</li>
+				<li><strong>Appearance &rarr; Widgets:</strong> drop the <em>"ZYMARG Search"</em> widget into any sidebar / header widget zone (Astra theme widget areas, footer columns, etc).</li>
+				<li><em>(Optional)</em> Legacy: the shortcode <code>[zymarg_algolia_search]</code> still works anywhere shortcodes are accepted.</li>
 			</ol>
 		</div>
 		<?php
