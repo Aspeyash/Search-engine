@@ -140,14 +140,21 @@ class Zymarg_Algolia_Products extends Zymarg_Algolia_Indexer {
 			$vendor_name = $author ? get_the_author_meta( 'display_name', $author ) : '';
 		}
 
-		// Categories & tags.
-		$cat_terms = get_the_terms( $post_id, 'product_cat' );
-		$cats      = array();
-		$cat_ids   = array();
+		// Categories & tags. We index three parallel arrays:
+		//   - categories       : human-readable names (used for searchable text +
+		//                        display in the dropdown)
+		//   - category_slugs   : URL slugs (used for filtering — slugs are stable
+		//                        and match what WP archives / widget pickers pass)
+		//   - category_ids     : term IDs (reserved for future use)
+		$cat_terms   = get_the_terms( $post_id, 'product_cat' );
+		$cats        = array();
+		$cat_slugs   = array();
+		$cat_ids     = array();
 		if ( is_array( $cat_terms ) ) {
 			foreach ( $cat_terms as $t ) {
-				$cats[]    = $t->name;
-				$cat_ids[] = (int) $t->term_id;
+				$cats[]      = $t->name;
+				$cat_slugs[] = $t->slug;
+				$cat_ids[]   = (int) $t->term_id;
 			}
 		}
 		$tag_terms = get_the_terms( $post_id, 'product_tag' );
@@ -244,8 +251,10 @@ class Zymarg_Algolia_Products extends Zymarg_Algolia_Indexer {
 			'min_variation_price' => $min_variation_price,
 			'max_variation_price' => $max_variation_price,
 			'categories'       => $cats,
+			'category_slugs'   => $cat_slugs,
 			'category_ids'     => $cat_ids,
 			'tags'             => $tags,
+			'featured'         => method_exists( $product, 'is_featured' ) ? (bool) $product->is_featured() : false,
 			'attributes'       => $attributes,
 			'average_rating'   => (float) $product->get_average_rating(),
 			'review_count'     => (int) $product->get_review_count(),
@@ -299,7 +308,14 @@ class Zymarg_Algolia_Products extends Zymarg_Algolia_Indexer {
 				'searchable(tags)',
 				'on_sale',
 				'in_stock',
+				'featured',
 				'price',
+				// filterOnly(): not a user-facing facet, just a filterable
+				// attribute. Required for slug-based category filters and
+				// vendor scoping (Dokan store pages) to actually return
+				// results from Algolia.
+				'filterOnly(category_slugs)',
+				'filterOnly(vendor_id)',
 			),
 			'customRanking'             => array(
 				'desc(total_sales)',
