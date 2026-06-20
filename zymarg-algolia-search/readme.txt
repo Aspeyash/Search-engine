@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,11 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.0.1 =
+* FIX: Products that WooCommerce hides (out of stock with "Hide out of stock items" enabled, or catalog-visibility "hidden") are no longer indexed, and are removed from the index on reindex and on stock-status change. Previously these were indexed but the product grid refused to render them, causing an "Empty card response" error on the search-results page — most visibly under the "Latest" sort (e.g. a broad query like "A" where the newest products were out of stock).
+* The indexer now mirrors the grid's visibility rule exactly, so Algolia never returns a product ID the grid cannot display. A `zymarg_algolia_index_product` filter is available to override this.
+* NOTE: run Settings -> ZYMARG Algolia -> "Reindex everything now" once after updating so existing out-of-stock/hidden products are purged from the index.
 
 = 2.0.0 =
 * NEW: "Smart Features" on/off switches in Settings -> ZYMARG Algolia. Each smart feature can now be turned off individually, with a plain-language note next to every switch explaining what it does.

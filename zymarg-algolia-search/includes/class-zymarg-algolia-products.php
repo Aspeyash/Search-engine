@@ -114,11 +114,35 @@ class Zymarg_Algolia_Products extends Zymarg_Algolia_Indexer {
 		if ( ! $product ) {
 			return null;
 		}
-		// Only published & visible.
+		// Only published.
 		if ( 'publish' !== $product->get_status() ) {
 			return null;
 		}
-		if ( method_exists( $product, 'get_catalog_visibility' ) && 'hidden' === $product->get_catalog_visibility() ) {
+
+		// Parity with the WC Product Grid: only index products WooCommerce
+		// would actually display. is_visible() already covers catalog
+		// visibility "hidden" AND out-of-stock products when the store has
+		// "Hide out of stock items from the catalog" enabled. Without this,
+		// the search index returned product IDs the grid then refused to
+		// render (is_visible() === false), which produced the
+		// "Empty card response" error on the search-results page — most
+		// visibly under the "Latest" sort, where the newest (often
+		// out-of-stock) products surface first.
+		$indexable = method_exists( $product, 'is_visible' ) ? (bool) $product->is_visible() : true;
+
+		/**
+		 * Filter whether a product should be indexed.
+		 *
+		 * Defaults to WooCommerce catalog visibility. Return true to
+		 * force-index hidden / out-of-stock products (note: the grid will
+		 * still refuse to render them, so only do this if your grid is
+		 * configured to show them too).
+		 *
+		 * @param bool       $indexable Whether to index this product.
+		 * @param WC_Product $product   Product object.
+		 * @param int        $post_id   Product ID.
+		 */
+		if ( ! apply_filters( 'zymarg_algolia_index_product', $indexable, $product, $post_id ) ) {
 			return null;
 		}
 

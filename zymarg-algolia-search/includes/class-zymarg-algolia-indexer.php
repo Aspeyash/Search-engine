@@ -230,14 +230,25 @@ abstract class Zymarg_Algolia_Indexer {
 			return;
 		}
 		$records = array();
+		$delete  = array();
 		foreach ( $ids as $id ) {
 			$rec = $this->build_record( $id );
 			if ( null !== $rec ) {
 				$records[] = $rec;
+			} else {
+				// No longer indexable (e.g. went out of stock / hidden).
+				// Remove any previously-indexed copy so the grid never
+				// receives an ID it cannot render.
+				$delete[] = $this->object_id( $id );
 			}
 		}
 		if ( ! empty( $records ) ) {
 			$this->client->save_objects( $this->get_index_name(), $records );
+		}
+		if ( ! empty( $delete ) ) {
+			foreach ( $delete as $oid ) {
+				$this->client->delete_object( $this->get_index_name(), $oid );
+			}
 		}
 	}
 }
