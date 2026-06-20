@@ -3,7 +3,7 @@
  * Plugin Name:       ZYMARG Search Engine
  * Plugin URI:        https://zymarg.com
  * Description:       ZYMARG Search Engine provides an intelligent, ultra-fast marketplace search experience with instant suggestions, recent searches, trending searches, category discovery, and seamless integration with the ZYMARG Product Browser.
- * Version:           2.3.0
+ * Version:           2.4.0
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '2.3.0' );
+define( 'ZYMARG_ALGOLIA_VERSION', '2.4.0' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );

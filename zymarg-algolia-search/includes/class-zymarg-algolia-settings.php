@@ -23,6 +23,7 @@ class Zymarg_Algolia_Settings {
 		add_action( 'admin_post_zymarg_algolia_reindex', array( $this, 'handle_reindex' ) );
 		add_action( 'admin_post_zymarg_algolia_verify', array( $this, 'handle_verify' ) );
 		add_action( 'admin_post_zymarg_algolia_cleanup', array( $this, 'handle_cleanup' ) );
+		add_action( 'wp_ajax_zymarg_algolia_save_notes', array( $this, 'ajax_save_notes' ) );
 	}
 
 	public function menu() {
@@ -169,6 +170,108 @@ class Zymarg_Algolia_Settings {
 				automatically in the background whenever products, categories, or vendors are added,
 				updated, or removed.
 			</p>
+
+			<?php
+			$admin_notes = (string) get_option( 'zymarg_algolia_admin_notes', '' );
+			$notes_nonce = wp_create_nonce( 'zymarg_algolia_save_notes' );
+			$results_url = apply_filters( 'zymarg_algolia_search_results_url', home_url( '/search-results/' ) );
+			?>
+			<div class="zymarg-ref" style="margin:14px 0 24px;padding:14px 18px;background:#f9f5ff;border:1px solid #e6d9ff;border-radius:10px;">
+				<h2 class="title" style="margin-top:0;">Quick Reference &amp; Notes</h2>
+				<p class="description">Everything worth remembering, in one place. Click any <code>code</code> to copy it.</p>
+				<table class="widefat striped" style="background:#fff;margin:8px 0 16px;max-width:860px;">
+					<tbody>
+						<tr>
+							<td style="width:240px;"><strong>Search bar shortcode</strong></td>
+							<td><code class="zymarg-copy" title="Click to copy" style="cursor:pointer;">[zymarg_algolia_search]</code></td>
+						</tr>
+						<tr>
+							<td><strong>Icon-only search bar</strong></td>
+							<td><code class="zymarg-copy" title="Click to copy" style="cursor:pointer;">[zymarg_algolia_search icon_only="1"]</code></td>
+						</tr>
+						<tr>
+							<td><strong>Add to header (Elementor)</strong></td>
+							<td>Edit your header &rarr; search the panel for <strong>"ZYMARG Search"</strong> (under the <em>ZYMARG</em> category) &rarr; drag it in. The Icon-only toggle is in the widget's Content tab.</td>
+						</tr>
+						<tr>
+							<td><strong>Search results page</strong></td>
+							<td><code class="zymarg-copy" title="Click to copy" style="cursor:pointer;"><?php echo esc_html( trailingslashit( $results_url ) ); ?>?q=KEYWORD</code> &mdash; the dropdown's "See all results" and the Enter key both go here.</td>
+						</tr>
+						<tr>
+							<td><strong>Results per batch</strong></td>
+							<td>20 per scroll (set in the <em>ZYMARG Search Result Page</em> plugin).</td>
+						</tr>
+						<tr>
+							<td><strong>Out-of-stock products</strong></td>
+							<td>Shown in search results (kept in the index on purpose).</td>
+						</tr>
+						<tr>
+							<td><strong>Orphaned records</strong></td>
+							<td>Cleaned automatically every day. Manual cleanup: the <strong>"Remove orphaned records"</strong> button further down this page.</td>
+						</tr>
+						<tr>
+							<td><strong>After bulk-adding products</strong></td>
+							<td>Optional: click <strong>"Reindex everything now"</strong> below (it also clears orphans).</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<label for="zymarg-admin-notes" style="font-weight:600;display:block;margin-bottom:4px;">My notes <span style="font-weight:400;color:#666;">(saved automatically)</span></label>
+				<textarea id="zymarg-admin-notes" rows="5" class="large-text" style="max-width:860px;" placeholder="Write anything you want to remember — credentials reminders, custom slugs, to-dos…"><?php echo esc_textarea( $admin_notes ); ?></textarea>
+				<p style="margin:6px 0 0;">
+					<button type="button" class="button button-secondary" id="zymarg-save-notes">Save notes</button>
+					<span id="zymarg-notes-status" style="margin-left:10px;font-weight:600;"></span>
+				</p>
+			</div>
+			<script>
+			(function () {
+				var ajaxurl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+				var nonce   = <?php echo wp_json_encode( $notes_nonce ); ?>;
+
+				// Click-to-copy.
+				Array.prototype.forEach.call(document.querySelectorAll('.zymarg-copy'), function (el) {
+					el.addEventListener('click', function () {
+						var text = el.textContent.trim();
+						var done = function () {
+							var prev = el.style.background;
+							el.style.background = '#d4f5dd';
+							setTimeout(function () { el.style.background = prev; }, 700);
+						};
+						if (navigator.clipboard && navigator.clipboard.writeText) {
+							navigator.clipboard.writeText(text).then(done).catch(done);
+						} else { done(); }
+					});
+				});
+
+				// Auto-saving notes (AJAX).
+				var ta     = document.getElementById('zymarg-admin-notes');
+				var btn    = document.getElementById('zymarg-save-notes');
+				var status = document.getElementById('zymarg-notes-status');
+				var timer;
+				function save() {
+					if (!ta) return;
+					status.textContent = 'Saving…'; status.style.color = '#666';
+					var body = 'action=zymarg_algolia_save_notes&nonce=' + encodeURIComponent(nonce) +
+						'&notes=' + encodeURIComponent(ta.value);
+					fetch(ajaxurl, {
+						method: 'POST', credentials: 'same-origin',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: body
+					}).then(function (r) { return r.json(); })
+					  .then(function (res) {
+						var ok = res && res.success;
+						status.textContent = ok ? 'Saved' : 'Save failed';
+						status.style.color = ok ? '#1a7f37' : '#b00';
+						setTimeout(function () { status.textContent = ''; }, 2000);
+					  }).catch(function () {
+						status.textContent = 'Save failed'; status.style.color = '#b00';
+					  });
+				}
+				if (btn) btn.addEventListener('click', save);
+				if (ta)  ta.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(save, 1200); });
+			})();
+			</script>
+
 
 			<form method="post" action="options.php">
 				<?php settings_fields( 'zymarg_algolia_group' ); ?>
@@ -731,6 +834,22 @@ class Zymarg_Algolia_Settings {
 				$c
 			)
 		);
+	}
+
+	/**
+	 * AJAX: save the admin's personal reference notes.
+	 */
+	public function ajax_save_notes() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'forbidden', 403 );
+		}
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'zymarg_algolia_save_notes' ) ) {
+			wp_send_json_error( 'bad_nonce', 403 );
+		}
+		$notes = isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '';
+		update_option( 'zymarg_algolia_admin_notes', $notes, false );
+		wp_send_json_success();
 	}
 
 	protected function redirect_with_notice( $type, $msg ) {

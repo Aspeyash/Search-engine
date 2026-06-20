@@ -99,6 +99,7 @@ class Zymarg_Algolia_Frontend {
 				'communityUrl'    => zymarg_algolia_get_setting( 'community_url' ),
 				'noResultsText'   => zymarg_algolia_get_setting( 'no_results_text' ),
 				'requestBtn'      => zymarg_algolia_get_setting( 'request_btn' ),
+				'searchUrl'       => apply_filters( 'zymarg_algolia_search_results_url', home_url( '/search-results/' ) ),
 				'placeholder'     => __( 'Search products, vendors, categories…', 'zymarg-algolia' ),
 				'trendingSearches' => $trending,
 				'showTrending'    => (int) zymarg_algolia_get_setting( 'show_trending', 1 ),

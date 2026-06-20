@@ -15,7 +15,7 @@
 ;(function () {
 	'use strict';
 
-	var VERSION = '2.3.0';
+	var VERSION = '2.4.0';
 
 	/* ---------------------------------------------------------------- */
 	/* Local-storage helpers                                             */
@@ -598,10 +598,11 @@
 				html += '</div>';
 			}
 
-			// "See all" link.
+			// "See all" link → the ZYMARG search results page (same destination
+			// as pressing Enter), so it always lands somewhere that works.
 			if (query) {
-				var url = (form && form.getAttribute('action')) || (window.location.origin + '/');
-				url += (url.indexOf('?') >= 0 ? '&' : '?') + 's=' + encodeURIComponent(query) + '&post_type=product';
+				var base = cfg.searchUrl || '/search-results/';
+				var url  = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=' + encodeURIComponent(query);
 				html += '<a class="zymarg-algolia-viewall" href="' + escapeHtml(url) + '">' +
 					escapeHtml(cfg.i18n.viewAll) + ' &rarr;</a>';
 			}
@@ -912,7 +913,7 @@
 				if (!query) return;
 				if (featRecent) syncPushRecent(cfg, query); // Feature 7
 				closeDropdown();
-				window.location.href = '/search-results/?q=' + encodeURIComponent(query);
+				window.location.href = ( cfg.searchUrl || '/search-results/' ) + '?q=' + encodeURIComponent(query);
 			});
 		}
 
