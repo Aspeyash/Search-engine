@@ -68,7 +68,9 @@ class Zymarg_Algolia_Categories extends Zymarg_Algolia_Indexer {
 			'type'      => 'category',
 			'name'      => $term->name,
 			'slug'      => $term->slug,
-			'permalink' => get_term_link( $term ),
+			'permalink' => home_url(
+    '/search-results/?q=' . rawurlencode( html_entity_decode( $term->name ) )
+),
 			'count'     => (int) $term->count,
 			'parent'    => (int) $term->parent,
 			'image'     => $image,

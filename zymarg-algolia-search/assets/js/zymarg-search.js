@@ -1,305 +1,514 @@
 /*!
- * ZYMARG Algolia Search - Frontend instant search (v2.0.0)
- * Renders a multi-index dropdown (products / vendors / categories) using
- * Algolia's lite client. No page reload.
+ * ZYMARG Search Engine - Frontend instant search.
+ * v1.0.36
  *
- * Search Engine 2.0 features (each gated by a flag from settings):
- *   - fast        : in-memory cache + request-sequence guard (no stale flicker)
- *   - keyboard    : Up/Down/Enter navigation using the existing .is-active style
- *   - recent      : recent searches stored in the visitor's own browser
- *   - insights    : Algolia Insights click events (opt-in)
- *   - logNoResults: report zero-result queries to the server (admin-ajax)
- *   - suggestions : as-you-type Query Suggestions from a dedicated index
- *
- * The dropdown animation and the SEO-safe ?s= form submit are intentionally
- * left untouched.
+ * Changes from v1.0.32:
+ *   1. Search-as-you-type progress bar — thin purple bar animates under the
+ *      input wrap while a request is in-flight (.is-searching class on wrapper).
+ *   6. Category scope filter — when data-category-scope="1" is set on the
+ *      wrapper, a row of category pills appears above product results. Tapping
+ *      a pill scopes all subsequent searches to that category; tap again to clear.
+ *   7. Cross-device recent-search sync — when WooCommerce user is logged in,
+ *      recent searches are read from and pushed to user_meta via AJAX.
+ *      Guest users fall back to localStorage silently.
  */
-(function () {
+;(function () {
 	'use strict';
 
-	var RECENT_KEY = 'zymargRecentSearches';
-	var RECENT_MAX = 6;
+	var VERSION = '2.0.0';
 
-	// Only the Algolia lite client is required now (InstantSearch.js removed).
-	if (typeof window.algoliasearch !== 'function') {
-		window.addEventListener('load', boot);
-		return;
+	/* ---------------------------------------------------------------- */
+	/* Local-storage helpers                                             */
+	/* ---------------------------------------------------------------- */
+	var STORAGE_RECENT = 'zymarg_recent_searches';
+	var STORAGE_USER   = 'zymarg_user_token';
+	var RECENT_LIMIT   = 5;
+
+	function safeLocalGet(key) {
+		try { return window.localStorage.getItem(key); } catch (e) { return null; }
 	}
-	boot();
+	function safeLocalSet(key, value) {
+		try { window.localStorage.setItem(key, value); } catch (e) {}
+	}
+	function safeLocalRemove(key) {
+		try { window.localStorage.removeItem(key); } catch (e) {}
+	}
 
-	function boot() {
-		var cfg = window.ZymargAlgolia;
-		if (!cfg || !cfg.appId || !cfg.searchKey) {
+	function uuidv4() {
+		var rnd = (window.crypto && typeof window.crypto.getRandomValues === 'function')
+			? function (n) { var a = new Uint8Array(n); window.crypto.getRandomValues(a); return a; }
+			: function (n) { var a = new Uint8Array(n); for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256); return a; };
+		var b = rnd(16);
+		b[6] = (b[6] & 0x0f) | 0x40;
+		b[8] = (b[8] & 0x3f) | 0x80;
+		var hex = '';
+		for (var i = 0; i < 16; i++) {
+			hex += (b[i] < 16 ? '0' : '') + b[i].toString(16);
+			if (i === 3 || i === 5 || i === 7 || i === 9) hex += '-';
+		}
+		return hex;
+	}
+
+	function getUserToken() {
+		var t = safeLocalGet(STORAGE_USER);
+		if (!t) { t = 'anonymous-' + uuidv4(); safeLocalSet(STORAGE_USER, t); }
+		return t;
+	}
+
+	/* ---------------------------------------------------------------- */
+	/* Recent searches — localStorage layer (always available)           */
+	/* ---------------------------------------------------------------- */
+	function getLocalRecent() {
+		try {
+			var raw = safeLocalGet(STORAGE_RECENT);
+			if (!raw) return [];
+			var arr = JSON.parse(raw);
+			return Array.isArray(arr) ? arr : [];
+		} catch (e) { return []; }
+	}
+
+	function setLocalRecent(list) {
+		try { safeLocalSet(STORAGE_RECENT, JSON.stringify(list)); } catch (e) {}
+	}
+
+	function addLocalRecent(q) {
+		q = (q || '').trim();
+		if (!q) return;
+		var list = getLocalRecent().filter(function (s) {
+			return s && String(s).toLowerCase() !== q.toLowerCase();
+		});
+		list.unshift(q);
+		if (list.length > RECENT_LIMIT) list = list.slice(0, RECENT_LIMIT);
+		setLocalRecent(list);
+	}
+
+	function clearLocalRecent() { safeLocalRemove(STORAGE_RECENT); }
+
+	/* ---------------------------------------------------------------- */
+	/* Cross-device sync (Feature 7) — AJAX to user_meta                */
+	/* Only active when cfg.syncEnabled === 1 (logged-in WC user).      */
+	/* Writes to localStorage as well so the UI is always instant.       */
+	/* ---------------------------------------------------------------- */
+	var syncCache = null; // in-memory cache so we don't re-fetch on every focus
+
+	function syncGetRecent(cfg, callback) {
+		if (!cfg.syncEnabled || !cfg.syncAjaxUrl || !cfg.syncNonce) {
+			callback(getLocalRecent());
 			return;
 		}
-		cfg.features = cfg.features || {};
+		// Return cached value immediately, refresh in background.
+		if (syncCache !== null) {
+			callback(syncCache);
+			return;
+		}
+		var fd = new FormData();
+		fd.append('action', 'zymarg_get_searches');
+		fd.append('nonce',  cfg.syncNonce);
+		fetch(cfg.syncAjaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+			.then(function (r) { return r.json(); })
+			.then(function (res) {
+				if (res && res.success && Array.isArray(res.data.searches)) {
+					syncCache = res.data.searches;
+					// Merge with any localStorage terms collected while offline.
+					var local = getLocalRecent();
+					local.forEach(function (t) {
+						if (!syncCache.some(function (s) { return s.toLowerCase() === t.toLowerCase(); })) {
+							syncCache.unshift(t);
+						}
+					});
+					syncCache = syncCache.slice(0, RECENT_LIMIT);
+					setLocalRecent(syncCache);
+				} else {
+					syncCache = getLocalRecent();
+				}
+				callback(syncCache);
+			})
+			.catch(function () {
+				syncCache = getLocalRecent();
+				callback(syncCache);
+			});
+	}
 
-		var insights = initInsights(cfg);
+	function syncPushRecent(cfg, term) {
+		// Always write locally first for instant UI.
+		addLocalRecent(term);
+		if (syncCache !== null) {
+			var lower = term.toLowerCase();
+			syncCache = syncCache.filter(function (s) { return s.toLowerCase() !== lower; });
+			syncCache.unshift(term);
+			syncCache = syncCache.slice(0, RECENT_LIMIT);
+		}
+		if (!cfg.syncEnabled || !cfg.syncAjaxUrl || !cfg.syncNonce) return;
+		var fd = new FormData();
+		fd.append('action', 'zymarg_push_searches');
+		fd.append('nonce',  cfg.syncNonce);
+		fd.append('term',   term);
+		fetch(cfg.syncAjaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+			.then(function (r) { return r.json(); })
+			.then(function (res) {
+				if (res && res.success && Array.isArray(res.data.searches)) {
+					syncCache = res.data.searches;
+					setLocalRecent(syncCache);
+				}
+			})
+			.catch(function () {});
+	}
 
-		var wrappers = document.querySelectorAll('[data-zymarg-search]');
+	function syncClearRecent(cfg) {
+		clearLocalRecent();
+		syncCache = [];
+		// No server-side clear endpoint needed — next push will rebuild the list.
+	}
+
+	/* ---------------------------------------------------------------- */
+	/* Algolia Insights                                                  */
+	/* ---------------------------------------------------------------- */
+	function sendInsightsEvent(cfg, indexName, queryID, objectID, position) {
+		if (!cfg || !cfg.appId || !cfg.searchKey) return;
+		if (!queryID || !objectID || !indexName) return;
+		var payload = {
+			events: [{
+				eventType: 'click',
+				eventName: 'Product Clicked from Search',
+				index:     indexName,
+				queryID:   queryID,
+				objectIDs: [String(objectID)],
+				positions: position ? [position] : undefined,
+				userToken: getUserToken(),
+				timestamp: Date.now()
+			}]
+		};
+		try {
+			var body = JSON.stringify(payload);
+			if (navigator && typeof navigator.sendBeacon === 'function') {
+				var url = 'https://insights.algolia.io/1/events' +
+					'?X-Algolia-Application-Id=' + encodeURIComponent(cfg.appId) +
+					'&X-Algolia-API-Key=' + encodeURIComponent(cfg.searchKey);
+				navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+				return;
+			}
+			fetch('https://insights.algolia.io/1/events', {
+				method: 'POST',
+				headers: {
+					'X-Algolia-Application-Id': cfg.appId,
+					'X-Algolia-API-Key':        cfg.searchKey,
+					'Content-Type':             'application/json'
+				},
+				body: body, keepalive: true, mode: 'cors', credentials: 'omit'
+			}).catch(function () {});
+		} catch (e) {}
+	}
+
+	/* ---------------------------------------------------------------- */
+	/* Diagnostics                                                       */
+	/* ---------------------------------------------------------------- */
+	var diag = {
+		version: VERSION, fetchAvailable: typeof window.fetch === 'function',
+		mutationObserver: typeof window.MutationObserver === 'function',
+		configFound: false, configValid: false,
+		wrappersFound: 0, wrappersBooted: 0,
+		lastQuery: null, lastResultCounts: null, lastError: null
+	};
+
+	window.zymargAlgoliaDebug = function () {
+		var ws = document.querySelectorAll('[data-zymarg-search], .zymarg-algolia-wrapper');
+		diag.wrappersFound = ws.length;
+		diag.wrappersBooted = 0;
+		Array.prototype.forEach.call(ws, function (w) { if (w.__zymargBooted) diag.wrappersBooted++; });
+		diag.configFound = !!window.ZymargAlgolia;
+		diag.configValid = !!(window.ZymargAlgolia && window.ZymargAlgolia.appId && window.ZymargAlgolia.searchKey);
+		try {
+			console.group('[ZymargAlgolia] diagnostics');
+			console.log('version:', diag.version);
+			console.log('config:', window.ZymargAlgolia || '(missing!)');
+			console.log('wrappers found:', diag.wrappersFound, '| booted:', diag.wrappersBooted);
+			console.log('last query:', diag.lastQuery, '| counts:', diag.lastResultCounts);
+			console.log('last error:', diag.lastError);
+			console.groupEnd();
+		} catch (e) {}
+		return diag;
+	};
+
+	function logWarn()  { try { console.warn.apply(console,  ['[ZymargAlgolia]'].concat([].slice.call(arguments))); } catch(e){} }
+	function logError() { try { console.error.apply(console, ['[ZymargAlgolia]'].concat([].slice.call(arguments))); } catch(e){} }
+	function logInfo()  { try { console.info.apply(console,  ['[ZymargAlgolia]'].concat([].slice.call(arguments))); } catch(e){} }
+
+	/* ---------------------------------------------------------------- */
+	/* Algolia REST client                                               */
+	/* ---------------------------------------------------------------- */
+	function paramsToQS(p) {
+		if (!p) return '';
+		return Object.keys(p).map(function (k) {
+			return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
+		}).join('&');
+	}
+
+	function createAlgoliaClient(appId, apiKey) {
+		var hosts = [
+			appId + '-dsn.algolia.net',
+			appId + '-1.algolianet.com',
+			appId + '-2.algolianet.com',
+			appId + '-3.algolianet.com'
+		];
+		return {
+			search: function (requests) {
+				var body = JSON.stringify({
+					requests: requests.map(function (r) {
+						return { indexName: r.indexName, params: paramsToQS(r.params || {}) };
+					})
+				});
+				var i = 0;
+				function attempt() {
+					if (i >= hosts.length) return Promise.reject(new Error('All Algolia hosts unreachable'));
+					var host = hosts[i++];
+					return fetch('https://' + host + '/1/indexes/*/queries', {
+						method: 'POST',
+						headers: {
+							'X-Algolia-Application-Id': appId,
+							'X-Algolia-API-Key': apiKey,
+							'Content-Type': 'application/x-www-form-urlencoded'
+						},
+						body: body, credentials: 'omit', mode: 'cors'
+					}).then(function (res) {
+						if (res.ok) return res.json();
+						if (res.status >= 500 && i < hosts.length) return attempt();
+						return res.json().catch(function () { return {}; }).then(function (j) {
+							var err = new Error((j && j.message) ? j.message : ('HTTP ' + res.status));
+							err.status = res.status; throw err;
+						});
+					}).catch(function (err) {
+						if (!err.status && i < hosts.length) return attempt();
+						throw err;
+					});
+				}
+				return attempt();
+			}
+		};
+	}
+
+	/* ---------------------------------------------------------------- */
+	/* Boot                                                              */
+	/* ---------------------------------------------------------------- */
+	function ready(fn) {
+		if (document.readyState !== 'loading') fn();
+		else document.addEventListener('DOMContentLoaded', fn);
+	}
+
+	function tryScanWithRetry(maxAttempts, intervalMs) {
+		var attempt = 0;
+		(function loop() {
+			scan();
+			attempt++;
+			if (diag.wrappersBooted > 0 || attempt >= maxAttempts) return;
+			setTimeout(loop, intervalMs);
+		})();
+	}
+
+	ready(function () {
+		if (typeof window.fetch !== 'function') {
+			logWarn('window.fetch unavailable; instant search disabled.');
+			return;
+		}
+		tryScanWithRetry(8, 250);
+		if (window.MutationObserver) {
+			var t;
+			new MutationObserver(function () {
+				clearTimeout(t); t = setTimeout(scan, 120);
+			}).observe(document.documentElement, { childList: true, subtree: true });
+		}
+		logInfo('v' + VERSION + ' ready.');
+	});
+
+	function scan() {
+		var cfg     = window.ZymargAlgolia;
+		var wrappers = document.querySelectorAll('[data-zymarg-search], .zymarg-algolia-wrapper');
+		diag.wrappersFound = wrappers.length;
+
+		if (!cfg) {
+			if (!scan.__warnedNoCfg) { logWarn('ZymargAlgolia config missing.'); scan.__warnedNoCfg = true; }
+			return;
+		}
+		diag.configFound = true;
+		diag.configValid = !!(cfg.appId && cfg.searchKey);
+		if (!cfg.appId || !cfg.searchKey) {
+			if (!scan.__warnedBadCfg) { logWarn('ZymargAlgolia: missing appId or searchKey.'); scan.__warnedBadCfg = true; }
+			return;
+		}
 		if (!wrappers.length) return;
 
+		var booted = 0;
 		Array.prototype.forEach.call(wrappers, function (wrapper) {
 			if (wrapper.__zymargBooted) return;
 			wrapper.__zymargBooted = true;
-			initWrapper(wrapper, cfg, insights);
+			initWrapper(wrapper, cfg);
+			booted++;
 		});
+		diag.wrappersBooted += booted;
+		if (booted > 0) logInfo('booted ' + booted + ' wrapper(s).');
 	}
 
-	/* -------------------------------------------------------------------- */
-	/* Helpers.                                                             */
-	/* -------------------------------------------------------------------- */
-
-	function initInsights(cfg) {
-		if (!cfg.features.insights) return null;
-		if (typeof window.aa !== 'function') return null;
-		try {
-			window.aa('init', {
-				appId: cfg.appId,
-				apiKey: cfg.searchKey,
-				useCookie: true
-			});
-			return window.aa;
-		} catch (e) {
-			return null;
-		}
-	}
-
+	/* ---------------------------------------------------------------- */
+	/* Helpers                                                           */
+	/* ---------------------------------------------------------------- */
 	function escapeHtml(str) {
 		if (str == null) return '';
 		return String(str)
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#39;');
+			.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 	}
 
 	function getHighlight(hit, attr) {
-		if (
-			hit &&
-			hit._highlightResult &&
-			hit._highlightResult[attr] &&
-			typeof hit._highlightResult[attr].value === 'string'
-		) {
+		if (hit && hit._highlightResult && hit._highlightResult[attr] &&
+			typeof hit._highlightResult[attr].value === 'string') {
 			return hit._highlightResult[attr].value;
 		}
 		return escapeHtml(hit && hit[attr] ? hit[attr] : '');
 	}
 
-	function debounce(fn, ms) {
-		var t;
-		return function () {
-			var ctx = this, args = arguments;
-			clearTimeout(t);
-			t = setTimeout(function () { fn.apply(ctx, args); }, ms);
-		};
-	}
-
-	function getRecent() {
-		try {
-			var v = JSON.parse(window.localStorage.getItem(RECENT_KEY));
-			return Array.isArray(v) ? v : [];
-		} catch (e) {
-			return [];
-		}
-	}
-
-	function addRecent(q) {
-		q = (q || '').trim();
-		if (!q) return;
-		try {
-			var list = getRecent().filter(function (x) {
-				return x.toLowerCase() !== q.toLowerCase();
-			});
-			list.unshift(q);
-			list = list.slice(0, RECENT_MAX);
-			window.localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-		} catch (e) {}
-	}
-
-	function clearRecent() {
-		try { window.localStorage.removeItem(RECENT_KEY); } catch (e) {}
-	}
-
-	/* -------------------------------------------------------------------- */
-	/* Per-wrapper init.                                                    */
-	/* -------------------------------------------------------------------- */
-
-	function initWrapper(wrapper, cfg, insights) {
-		var feat = cfg.features;
-		var input = wrapper.querySelector('.zymarg-algolia-input');
-		var dropdown = wrapper.querySelector('.zymarg-algolia-dropdown');
+	/* ---------------------------------------------------------------- */
+	/* Wrapper init                                                      */
+	/* ---------------------------------------------------------------- */
+	function initWrapper(wrapper, cfg) {
+		var input      = wrapper.querySelector('.zymarg-algolia-input');
+		var dropdown   = wrapper.querySelector('.zymarg-algolia-dropdown');
 		var resultsBox = wrapper.querySelector('.zymarg-algolia-results');
-		var emptyBox = wrapper.querySelector('.zymarg-algolia-empty');
+		var emptyBox   = wrapper.querySelector('.zymarg-algolia-empty');
 		var loadingBox = wrapper.querySelector('.zymarg-algolia-loading');
-		var clearBtn = wrapper.querySelector('.zymarg-algolia-clear');
-		var form = wrapper.querySelector('.zymarg-algolia-form');
+		var clearBtn   = wrapper.querySelector('.zymarg-algolia-clear');
+		var form       = wrapper.querySelector('.zymarg-algolia-form');
 
-		if (!input || !dropdown) return;
+		if (!input || !dropdown || !resultsBox || !emptyBox) {
+			logWarn('search wrapper missing required elements; skipping.');
+			return;
+		}
 
-		// Empty state content.
+		// Section flags.
+		var showProducts    = wrapper.getAttribute('data-show-products')   !== '0';
+		var showCategories  = wrapper.getAttribute('data-show-categories') !== '0';
+		var showVendors     = wrapper.getAttribute('data-show-vendors')    === '1';
+		var categoryScope   = wrapper.getAttribute('data-category-scope')  === '1'; // Feature 6
+
+		var spinnerMode = wrapper.getAttribute('data-spinner-mode') || 'searching';
+		if (spinnerMode !== 'searching' && spinnerMode !== 'focus' && spinnerMode !== 'hidden') {
+			spinnerMode = 'searching';
+		}
+
+		// Smart-feature flags (2.0.0). A missing/undefined flag means ENABLED,
+		// so older cached config or any glitch can never silently break a feature.
+		var FEAT = (cfg && cfg.features) || {};
+		var featOn = function (v) { return (v === undefined || v === null) ? true : (v !== 0 && v !== '0' && v !== false); };
+		var featRecent      = featOn(FEAT.recent);
+		var featKeyboard    = featOn(FEAT.keyboard);
+		var featInsights    = featOn(FEAT.insights);
+		var featRelated     = featOn(FEAT.related);
+		var featResultCount = featOn(FEAT.resultCount);
+
+		// Empty state text.
 		var emptyText = emptyBox.querySelector('.zymarg-algolia-empty-text');
-		var emptyBtn = emptyBox.querySelector('.zymarg-algolia-empty-btn');
+		var emptyBtn  = emptyBox.querySelector('.zymarg-algolia-empty-btn');
 		if (emptyText) emptyText.textContent = cfg.noResultsText || "Couldn't find what you're looking for?";
 		if (emptyBtn) {
 			emptyBtn.textContent = cfg.requestBtn || 'Request Here';
 			emptyBtn.setAttribute('href', cfg.communityUrl || '/community');
 		}
 
-		var client = window.algoliasearch(cfg.appId, cfg.searchKey);
+		var client    = createAlgoliaClient(cfg.appId, cfg.searchKey);
+		var lastReqId = 0;
 
-		// State for the smart features.
-		var cache = {};        // query -> payload (feat.fast)
-		var seq = 0;           // request-sequence guard (feat.fast)
-		var loggedQueries = {};// dedupe no-results logging
-		var lastQueryId = null;// Insights queryID
-		var activeIndex = -1;  // keyboard nav
+		/* -------------------------------------------------------------- */
+		/* Feature 6 — Category scope state                                */
+		/* -------------------------------------------------------------- */
+		var activeScopeCategory = null; // { objectID, name, filterValue }
 
-		var openDropdown = function () { dropdown.hidden = false; };
+		/* -------------------------------------------------------------- */
+		/* Feature 1 — Progress bar helpers                                */
+		/* .is-searching on wrapper shows the CSS progress bar.            */
+		/* -------------------------------------------------------------- */
+		var startProgress = function () { wrapper.classList.add('is-searching'); };
+		var stopProgress  = function () { wrapper.classList.remove('is-searching'); };
+
+		/* -------------------------------------------------------------- */
+		/* Dropdown visibility                                             */
+		/* -------------------------------------------------------------- */
+		var openDropdown  = function () { dropdown.hidden = false; };
 		var closeDropdown = function () {
 			dropdown.hidden = true;
 			emptyBox.hidden = true;
 			loadingBox.hidden = true;
-			activeIndex = -1;
+			stopProgress();
 		};
-		var showLoading = function () { loadingBox.hidden = false; };
+		var showLoading = function () {
+			if (spinnerMode === 'hidden') return;
+			loadingBox.hidden = false;
+		};
 		var hideLoading = function () { loadingBox.hidden = true; };
 
-		/* ---------- No-results logging (server side) ---------- */
-		var logNoResults = function (query) {
-			if (!feat.logNoResults || !query || !cfg.ajaxUrl) return;
-			var key = query.toLowerCase();
-			if (loggedQueries[key]) return;
-			loggedQueries[key] = 1;
-			try {
-				var body = 'action=zymarg_algolia_log_no_results' +
-					'&nonce=' + encodeURIComponent(cfg.logNonce || '') +
-					'&query=' + encodeURIComponent(query);
-				fetch(cfg.ajaxUrl, {
-					method: 'POST',
-					credentials: 'same-origin',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: body,
-					keepalive: true
-				});
-			} catch (e) {}
-		};
-
-		/* ---------- Keyboard navigation ---------- */
-		var selectableItems = function () {
-			return dropdown.querySelectorAll(
-				'.zymarg-algolia-hit, .zymarg-algolia-viewall, .zymarg-algolia-suggestion, .zymarg-algolia-recent-item'
-			);
-		};
-		var setActive = function (idx) {
-			var items = selectableItems();
-			if (!items.length) { activeIndex = -1; return; }
-			// Remove previous.
-			Array.prototype.forEach.call(items, function (el) {
-				el.classList.remove('is-active');
-			});
-			if (idx < 0) idx = items.length - 1;
-			if (idx >= items.length) idx = 0;
-			activeIndex = idx;
-			var el = items[activeIndex];
-			el.classList.add('is-active');
-			if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
-		};
-
-		/* ---------- Recent searches ---------- */
-		var renderRecent = function () {
-			if (!feat.recent) { closeDropdown(); return; }
-			var list = getRecent();
-			if (!list.length) { closeDropdown(); return; }
-			emptyBox.hidden = true;
-			var label = (cfg.i18nExtra && cfg.i18nExtra.recent) || 'Recent searches';
-			var clearTxt = (cfg.i18nExtra && cfg.i18nExtra.clearRecent) || 'Clear';
-			var html = '<div class="zymarg-algolia-section">' +
-				'<div class="zymarg-algolia-section-head">' +
-					'<h4 class="zymarg-algolia-section-title">' + escapeHtml(label) + '</h4>' +
-					'<button type="button" class="zymarg-algolia-clear-recent">' + escapeHtml(clearTxt) + '</button>' +
-				'</div>';
-			list.forEach(function (q) {
-				html += '<button type="button" class="zymarg-algolia-hit zymarg-algolia-recent-item" data-recent-q="' + escapeHtml(q) + '">' +
-					'<span class="zymarg-algolia-mini-icon" aria-hidden="true">&#8634;</span>' +
-					'<span class="zymarg-algolia-hit-body"><span class="zymarg-algolia-hit-title">' + escapeHtml(q) + '</span></span>' +
-				'</button>';
-			});
-			html += '</div>';
-			resultsBox.innerHTML = html;
-			activeIndex = -1;
-			openDropdown();
-		};
-
-		/* ---------- Empty (no results) ---------- */
-		var renderEmpty = function (query) {
+		var renderEmpty = function () {
 			resultsBox.innerHTML = '';
+			if (wrapper.classList.contains('zymarg-no-empty')) { closeDropdown(); return; }
 			emptyBox.hidden = false;
-			activeIndex = -1;
+			stopProgress();
 			openDropdown();
-			logNoResults(query);
 		};
 
-		/* ---------- Results ---------- */
-		var renderResults = function (productHits, vendorHits, catHits, suggestHits, query) {
+		/* -------------------------------------------------------------- */
+		/* renderResults — Products → Categories → Vendors                 */
+		/* Prepends category scope strip if Feature 6 is ON.              */
+		/* -------------------------------------------------------------- */
+		var renderResults = function (productHits, catHits, vendorHits, query, queryIDs, counts, relatedFor) {
 			emptyBox.hidden = true;
+			stopProgress();
+			queryIDs = queryIDs || { products: '', categories: '', vendors: '' };
+			counts   = counts   || { products: productHits.length, categories: catHits.length, vendors: vendorHits.length };
+
 			var html = '';
 
-			// Query Suggestions (top).
-			if (feat.suggestions && suggestHits && suggestHits.length) {
-				var sLabel = (cfg.i18nExtra && cfg.i18nExtra.suggestions) || 'Suggestions';
-				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(sLabel) + '</h4>';
-				suggestHits.slice(0, 5).forEach(function (h) {
-					var q = h.query || h.name || '';
-					if (!q) return;
-					html += '<button type="button" class="zymarg-algolia-hit zymarg-algolia-suggestion" data-suggest-q="' + escapeHtml(q) + '">' +
-						'<span class="zymarg-algolia-mini-icon" aria-hidden="true">&#8599;</span>' +
-						'<span class="zymarg-algolia-hit-body"><span class="zymarg-algolia-hit-title">' + getHighlight(h, 'query') + '</span></span>' +
-					'</button>';
-				});
-				html += '</div>';
+			// ── Feature 6: active scope badge ────────────────────────────
+			if (categoryScope && activeScopeCategory) {
+				html += '<div class="zymarg-scope-active">' +
+					'<span class="zymarg-scope-active-label">Searching in</span>' +
+					'<span class="zymarg-scope-active-name">' + escapeHtml(activeScopeCategory.name) + '</span>' +
+					'<button type="button" class="zymarg-scope-clear" aria-label="Clear category filter">&times;</button>' +
+				'</div>';
 			}
 
-			if (catHits && catHits.length) {
-				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.categories) + '</h4>';
-				catHits.slice(0, 3).forEach(function (h) {
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
-						'<span class="zymarg-algolia-cat-img">' +
-							(h.image ? '<img src="' + escapeHtml(h.image) + '" alt="" loading="lazy" />' : '') +
-						'</span>' +
-						'<span class="zymarg-algolia-hit-body">' +
-							'<span class="zymarg-algolia-hit-title">' + getHighlight(h, 'name') + '</span>' +
-							'<span class="zymarg-algolia-hit-meta">' + (h.count || 0) + ' products</span>' +
-						'</span>' +
-					'</a>';
-				});
-				html += '</div>';
+			// Related header.
+			if (relatedFor) {
+				html += '<div class="zymarg-algolia-related-header">' +
+					escapeHtml(cfg.i18n.relatedFor || 'Showing related results for') +
+					' <strong>' + escapeHtml(relatedFor) + '</strong></div>';
 			}
 
+			// Result count.
+			var totalCount = (counts.products || 0) + (counts.categories || 0) + (counts.vendors || 0);
+			if (featResultCount && totalCount > 0) {
+				html += '<div class="zymarg-algolia-count">' +
+					'<span class="zymarg-algolia-count-num">' + totalCount + '</span> ' +
+					escapeHtml(totalCount === 1
+						? (cfg.i18n.resultSingular || 'result')
+						: (cfg.i18n.resultPlural   || 'results')) +
+				'</div>';
+			}
+
+			// ── 1. Products ───────────────────────────────────────────────
 			if (productHits && productHits.length) {
+				var qidP = queryIDs.products || '';
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.products) + '</h4>';
-				productHits.slice(0, 6).forEach(function (h, i) {
+					escapeHtml(cfg.i18n.products) +
+					(counts.products ? ' <span class="zymarg-algolia-section-count">(' + counts.products + ')</span>' : '') +
+					'</h4>';
+				productHits.forEach(function (h, idx) {
 					var price = h.price_html
 						? h.price_html
 						: (h.price ? (cfg.currencySym + Number(h.price).toFixed(2)) : '');
 					var vendor = h.vendor_name
-						? '<span class="zymarg-algolia-hit-meta">' + escapeHtml(cfg.i18n.by) + ' ' +
-							getHighlight(h, 'vendor_name') + '</span>'
+						? '<span class="zymarg-algolia-hit-meta">' + escapeHtml(cfg.i18n.by) + ' ' + getHighlight(h, 'vendor_name') + '</span>'
 						: '';
-
-					// Insights data attributes (only emitted when enabled + objectID present).
-					var insAttr = '';
-					if (feat.insights && h.objectID) {
-						insAttr = ' data-object-id="' + escapeHtml(h.objectID) + '"' +
-							' data-position="' + (i + 1) + '"' +
-							' data-index="' + escapeHtml(cfg.indexProducts) + '"';
-					}
-
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' + insAttr + '>' +
+					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' +
+						' data-zymarg-index="'    + escapeHtml(cfg.indexProducts) + '"' +
+						' data-zymarg-queryid="'  + escapeHtml(qidP) + '"' +
+						' data-zymarg-objectid="' + escapeHtml(h.objectID || '') + '"' +
+						' data-zymarg-position="' + (idx + 1) + '">' +
 						(h.thumbnail
 							? '<img class="zymarg-algolia-hit-img" src="' + escapeHtml(h.thumbnail) + '" alt="" loading="lazy" />'
 							: '<span class="zymarg-algolia-hit-img"></span>') +
@@ -313,242 +522,411 @@
 				html += '</div>';
 			}
 
+			// ── 2. Categories ─────────────────────────────────────────────
+			// Feature 6: if scope is ON, categories become tappable scope pills.
+			if (catHits && catHits.length) {
+				var qidC = queryIDs.categories || '';
+				if (categoryScope) {
+					// Render as scope-selection pills, not navigation links.
+					html += '<div class="zymarg-algolia-section zymarg-scope-section">' +
+						'<h4 class="zymarg-algolia-section-title">' +
+						escapeHtml(cfg.i18n.categories) +
+						' <span class="zymarg-algolia-section-count zymarg-scope-hint">tap to filter</span>' +
+						'</h4>' +
+						'<div class="zymarg-scope-pills">';
+					catHits.slice(0, 5).forEach(function (h) {
+						var isActive = activeScopeCategory && activeScopeCategory.objectID === h.objectID;
+						// data-scope-value uses h.slug which maps to category_slugs in product index.
+						html += '<button type="button"' +
+							' class="zymarg-scope-pill' + (isActive ? ' is-active' : '') + '"' +
+							' data-scope-id="'    + escapeHtml(h.objectID || '') + '"' +
+							' data-scope-name="'  + escapeHtml(h.name || '') + '"' +
+							' data-scope-value="' + escapeHtml(h.slug || h.name.toLowerCase().replace(/\s+/g, '-') || '') + '">' +
+							getHighlight(h, 'name') +
+							(h.count ? ' <span class="zymarg-scope-pill-count">(' + h.count + ')</span>' : '') +
+						'</button>';
+					});
+					html += '</div></div>';
+				} else {
+					// Normal navigation links.
+					html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
+						escapeHtml(cfg.i18n.categories) +
+						(counts.categories ? ' <span class="zymarg-algolia-section-count">(' + counts.categories + ')</span>' : '') +
+						'</h4>';
+					catHits.slice(0, 3).forEach(function (h, idx) {
+						html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' +
+							' data-zymarg-index="'    + escapeHtml(cfg.indexCats) + '"' +
+							' data-zymarg-queryid="'  + escapeHtml(qidC) + '"' +
+							' data-zymarg-objectid="' + escapeHtml(h.objectID || '') + '"' +
+							' data-zymarg-position="' + (idx + 1) + '">' +
+							'<span class="zymarg-algolia-cat-img">' +
+								(h.image ? '<img src="' + escapeHtml(h.image) + '" alt="" loading="lazy" />' : '') +
+							'</span>' +
+							'<span class="zymarg-algolia-hit-body">' +
+								'<span class="zymarg-algolia-hit-title">' + getHighlight(h, 'name') + '</span>' +
+								'<span class="zymarg-algolia-hit-meta">' + (h.count || 0) + ' products</span>' +
+							'</span>' +
+						'</a>';
+					});
+					html += '</div>';
+				}
+			}
+
+			// ── 3. Vendors ────────────────────────────────────────────────
 			if (vendorHits && vendorHits.length) {
+				var qidV = queryIDs.vendors || '';
 				html += '<div class="zymarg-algolia-section"><h4 class="zymarg-algolia-section-title">' +
-					escapeHtml(cfg.i18n.vendors) + '</h4>';
-				vendorHits.slice(0, 4).forEach(function (h) {
+					escapeHtml(cfg.i18n.vendors) +
+					(counts.vendors ? ' <span class="zymarg-algolia-section-count">(' + counts.vendors + ')</span>' : '') +
+					'</h4>';
+				vendorHits.slice(0, 4).forEach(function (h, idx) {
 					var initials = (h.name || '').trim().charAt(0).toUpperCase() || 'Z';
-					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '">' +
+					html += '<a class="zymarg-algolia-hit" href="' + escapeHtml(h.permalink || '#') + '"' +
+						' data-zymarg-index="'    + escapeHtml(cfg.indexVendors) + '"' +
+						' data-zymarg-queryid="'  + escapeHtml(qidV) + '"' +
+						' data-zymarg-objectid="' + escapeHtml(h.objectID || '') + '"' +
+						' data-zymarg-position="' + (idx + 1) + '">' +
 						'<span class="zymarg-algolia-vendor-avatar">' +
-							(h.avatar
-								? '<img src="' + escapeHtml(h.avatar) + '" alt="" loading="lazy" />'
-								: escapeHtml(initials)) +
+							(h.avatar ? '<img src="' + escapeHtml(h.avatar) + '" alt="" loading="lazy" />' : escapeHtml(initials)) +
 						'</span>' +
 						'<span class="zymarg-algolia-hit-body">' +
 							'<span class="zymarg-algolia-hit-title">' + getHighlight(h, 'name') + '</span>' +
-							'<span class="zymarg-algolia-hit-meta">' +
-								(h.product_count || 0) + ' products' +
-							'</span>' +
+							'<span class="zymarg-algolia-hit-meta">' + (h.product_count || 0) + ' products</span>' +
 						'</span>' +
 					'</a>';
 				});
 				html += '</div>';
 			}
 
-			// "See all" link -> standard search page (?s=) so SEO crawl works.
+			// "See all" link.
 			if (query) {
-				var url = (form && form.getAttribute('action')) || '/';
-				url += (url.indexOf('?') >= 0 ? '&' : '?') + 's=' + encodeURIComponent(query) +
-					'&post_type=product';
+				var url = (form && form.getAttribute('action')) || (window.location.origin + '/');
+				url += (url.indexOf('?') >= 0 ? '&' : '?') + 's=' + encodeURIComponent(query) + '&post_type=product';
 				html += '<a class="zymarg-algolia-viewall" href="' + escapeHtml(url) + '">' +
 					escapeHtml(cfg.i18n.viewAll) + ' &rarr;</a>';
 			}
 
 			resultsBox.innerHTML = html;
-			activeIndex = -1;
+			resetActiveHit();
 			openDropdown();
 		};
 
-		/* ---------- Apply a result payload ---------- */
-		var applyResults = function (payload, query) {
-			hideLoading();
-			lastQueryId = payload.queryID || null;
-			if (!payload.p.length && !payload.v.length && !payload.c.length) {
-				renderEmpty(query);
-				return;
-			}
-			renderResults(payload.p, payload.v, payload.c, payload.s, query);
+		/* -------------------------------------------------------------- */
+		/* calculate product hits per viewport                             */
+		/* -------------------------------------------------------------- */
+		var calculateProductHits = function () {
+			var screenH    = window.innerHeight || 600;
+			var reserved   = 220;
+			var itemHeight = 64;
+			return Math.min(50, Math.max(4, Math.floor((screenH - reserved) / itemHeight)));
 		};
 
-		/* ---------- Search ---------- */
+		/* -------------------------------------------------------------- */
+		/* Feature 6 — build Algolia category filter string                */
+		/* Uses category_slugs facet (confirmed in Algolia index config).  */
+		/* -------------------------------------------------------------- */
+		var buildCategoryFilter = function () {
+			if (!categoryScope || !activeScopeCategory) return null;
+			return 'category_slugs:"' + activeScopeCategory.filterValue.replace(/"/g, '\\"') + '"';
+		};
+
+		/* -------------------------------------------------------------- */
+		/* search() — immediate, race-protected via lastReqId              */
+		/* Feature 1: startProgress() at start, stopProgress() on finish.  */
+		/* Feature 6: injects category filter when scope is active.        */
+		/* -------------------------------------------------------------- */
 		var search = function (query) {
-			if (!query) {
-				if (feat.recent) { renderRecent(); } else { closeDropdown(); }
-				return;
-			}
+			diag.lastQuery = query;
+			if (!query) { renderEmptyStateContent(); return; }
 
-			// Serve from cache instantly.
-			if (feat.fast && cache[query]) {
-				applyResults(cache[query], query);
-				return;
-			}
-
-			var my = ++seq;
+			startProgress(); // Feature 1
 			showLoading();
 			openDropdown();
 
-			var productParams = { query: query, hitsPerPage: 6 };
-			if (feat.insights) {
-				productParams.clickAnalytics = true;
-			}
+			var requests    = [];
+			var resultTypes = [];
+			var catFilter   = buildCategoryFilter(); // Feature 6
 
-			var requests = [
-				{ indexName: cfg.indexProducts, params: productParams },
-				{ indexName: cfg.indexVendors,  params: { query: query, hitsPerPage: 4 } },
-				{ indexName: cfg.indexCats,     params: { query: query, hitsPerPage: 3 } }
-			];
-
-			var suggIdx = -1;
-			if (feat.suggestions && cfg.suggestionsIndex) {
-				suggIdx = requests.length;
-				requests.push({
-					indexName: cfg.suggestionsIndex,
-					params: { query: query, hitsPerPage: 5 }
-				});
+			if (showProducts) {
+				var pParams = { query: query, hitsPerPage: calculateProductHits(), clickAnalytics: true };
+				if (catFilter) pParams.filters = catFilter;
+				requests.push({ indexName: cfg.indexProducts, params: pParams });
+				resultTypes.push('products');
 			}
+			if (showCategories) {
+				requests.push({ indexName: cfg.indexCats, params: { query: query, hitsPerPage: 5, clickAnalytics: true } });
+				resultTypes.push('categories');
+			}
+			if (showVendors) {
+				requests.push({ indexName: cfg.indexVendors, params: { query: query, hitsPerPage: 4, clickAnalytics: true } });
+				resultTypes.push('vendors');
+			}
+			if (!requests.length) { hideLoading(); stopProgress(); closeDropdown(); return; }
+
+			var reqId = ++lastReqId;
 
 			client.search(requests).then(function (res) {
-				// Ignore out-of-order responses (only when fast mode is on).
-				if (feat.fast && my !== seq) return;
-
-				var p = res.results[0] || {};
-				var v = res.results[1] || {};
-				var c = res.results[2] || {};
-				var payload = {
-					p: p.hits || [],
-					v: v.hits || [],
-					c: c.hits || [],
-					s: (suggIdx >= 0 && res.results[suggIdx]) ? (res.results[suggIdx].hits || []) : [],
-					queryID: p.queryID || null
-				};
-
-				if (feat.fast) cache[query] = payload;
-				applyResults(payload, query);
-			}).catch(function (err) {
-				if (feat.fast && my !== seq) return;
+				if (reqId !== lastReqId) return;
 				hideLoading();
-				if (window.console) console.error('[ZymargAlgolia]', err);
-				closeDropdown();
+				stopProgress(); // Feature 1
+
+				var byType   = { products: [], categories: [], vendors: [] };
+				var counts   = { products: 0,  categories: 0,  vendors: 0  };
+				var queryIDs = { products: '', categories: '', vendors: ''  };
+
+				((res && res.results) || []).forEach(function (r, i) {
+					var type       = resultTypes[i];
+					byType[type]   = r.hits || [];
+					counts[type]   = (typeof r.nbHits === 'number') ? r.nbHits : (r.hits || []).length;
+					queryIDs[type] = r.queryID || '';
+				});
+				diag.lastResultCounts = counts;
+
+				var totalHits = byType.products.length + byType.categories.length + byType.vendors.length;
+				if (totalHits === 0) {
+					if (featRelated) { tryRelatedFallback(query, reqId); } else { renderEmpty(); }
+					return;
+				}
+
+				renderResults(byType.products, byType.categories, byType.vendors, query, queryIDs, counts);
+			}).catch(function (err) {
+				if (reqId !== lastReqId) return;
+				hideLoading(); stopProgress();
+				diag.lastError = (err && err.message) ? err.message : String(err);
+				logError('search failed:', err);
+				renderEmpty();
 			});
 		};
 
-		var debounced = debounce(function () {
+		/* -------------------------------------------------------------- */
+		/* Related results fallback                                        */
+		/* -------------------------------------------------------------- */
+		var tryRelatedFallback = function (query, reqId) {
+			if (!showProducts || !cfg.indexProducts) { renderEmpty(); return; }
+			showLoading(); startProgress(); openDropdown();
+			client.search([{
+				indexName: cfg.indexProducts,
+				params: { query: query, hitsPerPage: calculateProductHits(), clickAnalytics: true, removeWordsIfNoResults: 'allOptional' }
+			}]).then(function (res) {
+				if (reqId !== lastReqId) return;
+				hideLoading(); stopProgress();
+				var r = (res && res.results && res.results[0]) || {};
+				var hits = r.hits || [];
+				if (!hits.length) { renderEmpty(); return; }
+				renderResults(hits, [], [], query,
+					{ products: r.queryID || '', categories: '', vendors: '' },
+					{ products: (typeof r.nbHits === 'number') ? r.nbHits : hits.length, categories: 0, vendors: 0 },
+					query
+				);
+			}).catch(function () {
+				if (reqId !== lastReqId) return;
+				hideLoading(); stopProgress(); renderEmpty();
+			});
+		};
+
+		/* -------------------------------------------------------------- */
+		/* Empty state: Recent + Trending (Feature 7 uses sync layer)      */
+		/* -------------------------------------------------------------- */
+		var renderEmptyStateContent = function () {
+			var trending = (cfg.showTrending !== 0 && cfg.trendingSearches && Array.isArray(cfg.trendingSearches))
+				? cfg.trendingSearches : [];
+
+			syncGetRecent(cfg, function (recentRaw) {
+				var recent = featRecent ? recentRaw : [];
+				if (!recent.length && !trending.length) { closeDropdown(); return; }
+
+				emptyBox.hidden = true;
+				var html = '';
+
+				if (recent.length) {
+					html += '<div class="zymarg-algolia-section zymarg-algolia-recent">' +
+						'<div class="zymarg-es-row">' +
+							'<span class="zymarg-es-row-icon zymarg-es-row-icon--recent" aria-hidden="true"></span>' +
+							'<span class="zymarg-es-row-label">' +
+								escapeHtml(cfg.i18n.recentSearches || 'Recent searches') +
+								' <a href="#" class="zymarg-algolia-recent-clear">' +
+									escapeHtml(cfg.i18n.clear || 'Clear') +
+								'</a>' +
+							'</span>' +
+						'</div>' +
+						'<div class="zymarg-es-pills">';
+					recent.forEach(function (q) {
+						html += '<button type="button" class="zymarg-es-pill" data-q="' +
+							escapeHtml(q) + '">' + escapeHtml(q) + '</button>';
+					});
+					html += '</div></div>';
+				}
+
+				if (trending.length) {
+					html += '<div class="zymarg-algolia-section zymarg-algolia-trending">' +
+						'<div class="zymarg-es-row">' +
+							'<span class="zymarg-es-row-icon zymarg-es-row-icon--trending" aria-hidden="true"></span>' +
+							'<span class="zymarg-es-row-label">' +
+								escapeHtml(cfg.i18n.trendingSearches || 'Trending searches') +
+							'</span>' +
+						'</div>' +
+						'<div class="zymarg-es-pills">';
+					trending.forEach(function (q) {
+						html += '<button type="button" class="zymarg-es-pill" data-q="' +
+							escapeHtml(q) + '">' + escapeHtml(q) + '</button>';
+					});
+					html += '</div></div>';
+				}
+
+				resultsBox.innerHTML = html;
+				resetActiveHit();
+				openDropdown();
+			});
+		};
+
+		/* -------------------------------------------------------------- */
+		/* Keyboard navigation                                             */
+		/* -------------------------------------------------------------- */
+		var activeHit = null;
+		var resetActiveHit = function () {
+			if (activeHit) { activeHit.classList.remove('is-active'); activeHit = null; }
+		};
+		var moveActiveHit = function (dir) {
+			var hits = wrapper.querySelectorAll('.zymarg-algolia-hit');
+			if (!hits.length) return;
+			var current = -1;
+			Array.prototype.forEach.call(hits, function (h, i) { if (h === activeHit) current = i; });
+			var next = dir > 0
+				? (current + 1) % hits.length
+				: (current <= 0 ? hits.length - 1 : current - 1);
+			if (activeHit) activeHit.classList.remove('is-active');
+			activeHit = hits[next];
+			activeHit.classList.add('is-active');
+			if (typeof activeHit.scrollIntoView === 'function') activeHit.scrollIntoView({ block: 'nearest' });
+		};
+
+		/* -------------------------------------------------------------- */
+		/* Dropdown event delegation                                        */
+		/* -------------------------------------------------------------- */
+		dropdown.addEventListener('click', function (e) {
+			// Empty-state pill.
+			var pill = e.target.closest && e.target.closest('.zymarg-es-pill');
+			if (pill) {
+				e.preventDefault();
+				var q = pill.getAttribute('data-q') || '';
+				input.value = q;
+				if (clearBtn) clearBtn.hidden = !q;
+				search(q);
+				return;
+			}
+
+			// Clear recent.
+			var clearLink = e.target.closest && e.target.closest('.zymarg-algolia-recent-clear');
+			if (clearLink) {
+				e.preventDefault();
+				syncClearRecent(cfg);
+				renderEmptyStateContent();
+				return;
+			}
+
+			// Feature 6 — scope pill tap.
+			var scopePill = e.target.closest && e.target.closest('.zymarg-scope-pill');
+			if (scopePill) {
+				e.preventDefault();
+				var sid   = scopePill.getAttribute('data-scope-id');
+				var sname = scopePill.getAttribute('data-scope-name');
+				var sval  = scopePill.getAttribute('data-scope-value');
+				if (activeScopeCategory && activeScopeCategory.objectID === sid) {
+					// Tap same pill again → clear scope.
+					activeScopeCategory = null;
+				} else {
+					activeScopeCategory = { objectID: sid, name: sname, filterValue: sval };
+				}
+				search(input.value.trim());
+				return;
+			}
+
+			// Feature 6 — clear scope badge button.
+			var scopeClear = e.target.closest && e.target.closest('.zymarg-scope-clear');
+			if (scopeClear) {
+				e.preventDefault();
+				activeScopeCategory = null;
+				search(input.value.trim());
+				return;
+			}
+
+			// Hit click → Insights.
+			var hit = e.target.closest && e.target.closest('.zymarg-algolia-hit');
+			if (hit) {
+				var indexName = hit.getAttribute('data-zymarg-index');
+				var queryID   = hit.getAttribute('data-zymarg-queryid');
+				var objectID  = hit.getAttribute('data-zymarg-objectid');
+				var position  = parseInt(hit.getAttribute('data-zymarg-position'), 10) || 0;
+				if (featInsights && indexName && queryID && objectID) sendInsightsEvent(cfg, indexName, queryID, objectID, position);
+				if (featRecent) syncPushRecent(cfg, input.value.trim()); // Feature 7
+			}
+		});
+
+		/* -------------------------------------------------------------- */
+		/* Input events — immediate, no debounce                           */
+		/* -------------------------------------------------------------- */
+		var handleInput = function () {
 			var q = (input.value || '').trim();
 			if (clearBtn) clearBtn.hidden = !q;
+			// Feature 6 — clear scope when user clears the input.
+			if (!q) activeScopeCategory = null;
 			search(q);
-		}, 120);
+		};
 
-		input.addEventListener('input', debounced);
+		input.addEventListener('input',          handleInput);
+		input.addEventListener('keyup',          handleInput);
+		input.addEventListener('paste',          function () { setTimeout(handleInput, 0); });
+		input.addEventListener('compositionend', handleInput);
+		input.addEventListener('change',         handleInput);
 
 		input.addEventListener('focus', function () {
 			var q = (input.value || '').trim();
-			if (q) {
-				search(q);
-			} else if (feat.recent) {
-				renderRecent();
-			}
+			if (spinnerMode === 'focus') { showLoading(); openDropdown(); }
+			if (q) search(q);
+			else renderEmptyStateContent();
 		});
 
-		/* ---------- Keyboard navigation + Esc ---------- */
 		input.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape') {
-				closeDropdown();
-				input.blur();
-				return;
-			}
-			if (!feat.keyboard || dropdown.hidden) {
-				return;
-			}
-			if (e.key === 'ArrowDown') {
+			if (e.key === 'Escape'    || e.keyCode === 27) { closeDropdown(); input.blur(); return; }
+			if (!featKeyboard) return;
+			if (e.key === 'ArrowDown' || e.keyCode === 40) { e.preventDefault(); moveActiveHit(+1); return; }
+			if (e.key === 'ArrowUp'   || e.keyCode === 38) { e.preventDefault(); moveActiveHit(-1); return; }
+			if ((e.key === 'Enter'    || e.keyCode === 13) && activeHit) {
 				e.preventDefault();
-				setActive(activeIndex + 1);
-			} else if (e.key === 'ArrowUp') {
-				e.preventDefault();
-				setActive(activeIndex - 1);
-			} else if (e.key === 'Enter') {
-				var items = selectableItems();
-				if (activeIndex >= 0 && items[activeIndex]) {
-					// Follow the highlighted item instead of submitting the form.
-					e.preventDefault();
-					items[activeIndex].click();
-				}
-				// Otherwise: let the form submit -> ?s= results page (unchanged).
+				var indexName = activeHit.getAttribute('data-zymarg-index');
+				var queryID   = activeHit.getAttribute('data-zymarg-queryid');
+				var objectID  = activeHit.getAttribute('data-zymarg-objectid');
+				var position  = parseInt(activeHit.getAttribute('data-zymarg-position'), 10) || 0;
+				if (featInsights && indexName && queryID && objectID) sendInsightsEvent(cfg, indexName, queryID, objectID, position);
+				if (featRecent) syncPushRecent(cfg, input.value.trim()); // Feature 7
+				var href = activeHit.getAttribute('href');
+				if (href) window.location.href = href;
 			}
 		});
 
-		/* ---------- Submit -> WP standard search (SEO crawlable, unchanged) ---------- */
+		// Form submit.
 		if (form) {
-			form.addEventListener('submit', function () {
-				addRecent((input.value || '').trim());
+			form.addEventListener('submit', function (e) {
+				e.preventDefault();
+				var query = input.value.trim();
+				if (!query) return;
+				if (featRecent) syncPushRecent(cfg, query); // Feature 7
 				closeDropdown();
-				var hidden = form.querySelector('input[name="post_type"]');
-				if (!hidden) {
-					hidden = document.createElement('input');
-					hidden.type = 'hidden';
-					hidden.name = 'post_type';
-					hidden.value = 'product';
-					form.appendChild(hidden);
-				}
+				window.location.href = '/search-results/?q=' + encodeURIComponent(query);
 			});
 		}
-
-		/* ---------- Delegated clicks inside the dropdown ---------- */
-		dropdown.addEventListener('click', function (e) {
-			// Clear recent searches.
-			if (e.target.closest('.zymarg-algolia-clear-recent')) {
-				e.preventDefault();
-				clearRecent();
-				closeDropdown();
-				input.focus();
-				return;
-			}
-
-			// Recent search chosen.
-			var recentEl = e.target.closest('.zymarg-algolia-recent-item');
-			if (recentEl) {
-				e.preventDefault();
-				var rq = recentEl.getAttribute('data-recent-q') || '';
-				input.value = rq;
-				if (clearBtn) clearBtn.hidden = !rq;
-				search(rq);
-				input.focus();
-				return;
-			}
-
-			// Suggestion chosen.
-			var suggEl = e.target.closest('.zymarg-algolia-suggestion');
-			if (suggEl) {
-				e.preventDefault();
-				var sq = suggEl.getAttribute('data-suggest-q') || '';
-				input.value = sq;
-				if (clearBtn) clearBtn.hidden = !sq;
-				search(sq);
-				input.focus();
-				return;
-			}
-
-			// Insights: product click after search.
-			if (insights && lastQueryId) {
-				var hit = e.target.closest('[data-object-id]');
-				if (hit) {
-					try {
-						insights('clickedObjectIDsAfterSearch', {
-							index: hit.getAttribute('data-index'),
-							eventName: 'Product Clicked',
-							queryID: lastQueryId,
-							objectIDs: [hit.getAttribute('data-object-id')],
-							positions: [parseInt(hit.getAttribute('data-position'), 10) || 1]
-						});
-					} catch (err) {}
-				}
-			}
-
-			// Any real result link counts as a "recent search".
-			if (e.target.closest('a.zymarg-algolia-hit, .zymarg-algolia-viewall')) {
-				addRecent((input.value || '').trim());
-			}
-		});
 
 		if (clearBtn) {
 			clearBtn.addEventListener('click', function () {
 				input.value = '';
 				clearBtn.hidden = true;
-				if (feat.recent) { renderRecent(); } else { closeDropdown(); }
+				activeScopeCategory = null; // Feature 6
+				closeDropdown();
 				input.focus();
 			});
 		}
 
-		// Click outside -> close.
+		// Click outside → close.
 		document.addEventListener('click', function (e) {
 			if (!wrapper.contains(e.target)) closeDropdown();
 		});
