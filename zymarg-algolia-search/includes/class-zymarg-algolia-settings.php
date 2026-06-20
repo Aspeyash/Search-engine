@@ -74,6 +74,7 @@ class Zymarg_Algolia_Settings {
 		$out['feat_insights']     = ! empty( $input['feat_insights'] ) ? 1 : 0;
 		$out['feat_related']      = ! empty( $input['feat_related'] ) ? 1 : 0;
 		$out['feat_result_count'] = ! empty( $input['feat_result_count'] ) ? 1 : 0;
+		$out['auto_cleanup']      = ! empty( $input['auto_cleanup'] ) ? 1 : 0;
 
 		// Languages.
 		$langs = isset( $input['languages'] ) ? (array) $input['languages'] : array( 'en', 'bn' );
@@ -321,6 +322,28 @@ class Zymarg_Algolia_Settings {
 						<th scope="row">Trending searches</th>
 						<td>
 							<p class="description" style="margin-top:6px;">Controlled by the <strong>"Show trending searches"</strong> switch in the <em>No-results CTA</em> section just below, along with the trending terms list. (Kept there so it sits next to the related text settings.)</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Automatic orphan cleanup</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[auto_cleanup]" value="1"
+									<?php checked( ! empty( $settings['auto_cleanup'] ) ); ?> /> Enable (runs daily in the background)
+							</label>
+							<p class="description">
+								Automatically removes orphaned index records once a day, so you never have to click
+								"Remove orphaned records" yourself. Orphans are leftovers from products removed via
+								bulk edits / imports that skip the normal delete hooks. Out-of-stock products are kept.
+								<?php
+								$last = get_option( 'zymarg_algolia_last_cleanup' );
+								if ( is_array( $last ) && ! empty( $last['time'] ) ) {
+									echo '<br /><em>Last auto-cleanup: ' . esc_html( wp_date( 'M j, Y g:i A', (int) $last['time'] ) )
+										. ' (' . esc_html( human_time_diff( (int) $last['time'], time() ) ) . ' ago) — removed '
+										. (int) ( isset( $last['removed'] ) ? $last['removed'] : 0 ) . ' record(s).</em>';
+								}
+								?>
+							</p>
 						</td>
 					</tr>
 				</table>

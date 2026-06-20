@@ -3,7 +3,7 @@
  * Plugin Name:       ZYMARG Search Engine
  * Plugin URI:        https://zymarg.com
  * Description:       ZYMARG Search Engine provides an intelligent, ultra-fast marketplace search experience with instant suggestions, recent searches, trending searches, category discovery, and seamless integration with the ZYMARG Product Browser.
- * Version:           2.1.0
+ * Version:           2.2.0
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '2.1.0' );
+define( 'ZYMARG_ALGOLIA_VERSION', '2.2.0' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );
@@ -52,6 +52,9 @@ function zymarg_algolia_default_settings() {
 		'feat_insights'     => 1, // Click tracking sent to Algolia (improves ranking over time).
 		'feat_related'      => 1, // "Showing related results for ..." fallback when 0 exact matches.
 		'feat_result_count' => 1, // The "N results" count badge at the top of the dropdown.
+
+		// Automatically remove orphaned index records in the background (daily).
+		'auto_cleanup'      => 1,
 
 		// Analytics endpoint region (1.0.14).
 		// 'auto'   : try Global first, fall back to EU on empty response (default).
@@ -160,8 +163,69 @@ function zymarg_algolia_boot() {
 	new Zymarg_Algolia_Block();
 	new Zymarg_Algolia_Search_CTA();
 	new Zymarg_Algolia_Search_Sync(); // Cross-device recent-search sync (1.0.36).
+
+	// Make sure the automatic orphan-cleanup schedule matches the setting.
+	zymarg_algolia_sync_cleanup_schedule();
 }
 add_action( 'plugins_loaded', 'zymarg_algolia_boot', 20 );
+
+/**
+ * Recurring background task: remove orphaned index records automatically so
+ * the user never has to flush manually. Orphans are records left behind when
+ * products are removed via bulk edits / imports / programmatic changes that
+ * skip the normal delete hooks.
+ */
+function zymarg_algolia_run_orphan_cleanup() {
+	if ( ! class_exists( 'Zymarg_Algolia_Products' ) ) {
+		return;
+	}
+	$removed  = 0;
+	$removed += (int) ( new Zymarg_Algolia_Products() )->cleanup_orphans();
+	$removed += (int) ( new Zymarg_Algolia_Vendors() )->cleanup_orphans();
+	$removed += (int) ( new Zymarg_Algolia_Categories() )->cleanup_orphans();
+
+	update_option(
+		'zymarg_algolia_last_cleanup',
+		array(
+			'time'    => time(),
+			'removed' => $removed,
+		),
+		false
+	);
+}
+add_action( 'zymarg_algolia_cleanup_cron', 'zymarg_algolia_run_orphan_cleanup' );
+
+/**
+ * Keep the daily cleanup schedule in sync with the "auto_cleanup" setting.
+ * Prefers Action Scheduler (bundled with WooCommerce); falls back to WP-Cron.
+ */
+function zymarg_algolia_sync_cleanup_schedule() {
+	$enabled = (bool) zymarg_algolia_get_setting( 'auto_cleanup', 1 );
+
+	// Action Scheduler (reliable, used by WooCommerce).
+	if ( function_exists( 'as_has_scheduled_action' ) && function_exists( 'as_schedule_recurring_action' ) ) {
+		$has = as_has_scheduled_action( 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+		if ( $enabled && ! $has ) {
+			as_schedule_recurring_action( time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+		} elseif ( ! $enabled && $has && function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+		}
+		// Also clear any leftover WP-Cron version.
+		$wp = wp_next_scheduled( 'zymarg_algolia_cleanup_cron' );
+		if ( $wp ) {
+			wp_unschedule_event( $wp, 'zymarg_algolia_cleanup_cron' );
+		}
+		return;
+	}
+
+	// WP-Cron fallback.
+	$scheduled = wp_next_scheduled( 'zymarg_algolia_cleanup_cron' );
+	if ( $enabled && ! $scheduled ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'zymarg_algolia_cleanup_cron' );
+	} elseif ( ! $enabled && $scheduled ) {
+		wp_unschedule_event( $scheduled, 'zymarg_algolia_cleanup_cron' );
+	}
+}
 
 /**
  * Activation: seed default settings, schedule first reindex.
@@ -182,6 +246,10 @@ register_activation_hook( __FILE__, 'zymarg_algolia_activate' );
  */
 function zymarg_algolia_deactivate() {
 	wp_clear_scheduled_hook( 'zymarg_algolia_reindex_batch' );
+	wp_clear_scheduled_hook( 'zymarg_algolia_cleanup_cron' );
+	if ( function_exists( 'as_unschedule_all_actions' ) ) {
+		as_unschedule_all_actions( 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+	}
 }
 register_deactivation_hook( __FILE__, 'zymarg_algolia_deactivate' );
 

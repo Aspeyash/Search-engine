@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,11 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.2.0 =
+* NEW: Automatic orphan cleanup. A daily background task removes orphaned index records on its own, so you never have to click "Remove orphaned records" manually. Uses Action Scheduler (bundled with WooCommerce) when available, otherwise WP-Cron.
+* New "Automatic orphan cleanup" toggle in Settings (on by default), with a note showing when it last ran and how many records it removed.
+* Out-of-stock products are preserved. Normal product deletes/unpublishes are still cleaned instantly via hooks; the daily sweep catches leftovers from bulk edits / imports / programmatic changes that skip those hooks.
 
 = 2.1.0 =
 * NEW: Orphaned-record cleanup. Removes index entries for products that were deleted, trashed, or unpublished but were never removed from Algolia. These leftovers accumulated (e.g. 1,162 indexed records vs 1,007 published products) and stacked at the top of the "Latest" (date_created desc) virtual replica, making the search-results page slow (~8s) and showing fewer than a full page of products until you scrolled past them.
