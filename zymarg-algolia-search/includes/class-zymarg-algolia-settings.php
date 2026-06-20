@@ -22,6 +22,7 @@ class Zymarg_Algolia_Settings {
 		add_action( 'admin_init', array( $this, 'register' ) );
 		add_action( 'admin_post_zymarg_algolia_reindex', array( $this, 'handle_reindex' ) );
 		add_action( 'admin_post_zymarg_algolia_verify', array( $this, 'handle_verify' ) );
+		add_action( 'admin_post_zymarg_algolia_cleanup', array( $this, 'handle_cleanup' ) );
 	}
 
 	public function menu() {
@@ -144,6 +145,10 @@ class Zymarg_Algolia_Settings {
 		$verify_url = wp_nonce_url(
 			admin_url( 'admin-post.php?action=zymarg_algolia_verify' ),
 			'zymarg_algolia_verify'
+		);
+		$cleanup_url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=zymarg_algolia_cleanup' ),
+			'zymarg_algolia_cleanup'
 		);
 
 		$notice = isset( $_GET['zymarg_notice'] ) ? sanitize_text_field( wp_unslash( $_GET['zymarg_notice'] ) ) : '';
@@ -558,6 +563,17 @@ class Zymarg_Algolia_Settings {
 					onclick="return confirm('Reindex everything now? This runs in the background.');">
 					Reindex everything now
 				</a>
+				&nbsp;
+				<a class="button button-secondary" href="<?php echo esc_url( $cleanup_url ); ?>"
+					onclick="return confirm('Remove orphaned records from the index now?');">
+					Remove orphaned records
+				</a>
+			</p>
+			<p class="description">
+				<strong>Remove orphaned records</strong> deletes index entries for products that were
+				deleted, trashed, or unpublished but were never removed from Algolia. These leftovers pile up
+				at the top of the <em>Latest</em> sort and make the search-results page slow and incomplete.
+				Out-of-stock products are kept. (This also runs automatically with every reindex.)
 			</p>
 
 			<h2 class="title">How to add the search bar</h2>
@@ -640,7 +656,58 @@ class Zymarg_Algolia_Settings {
 		$total += $vendors->reindex_all();
 		$total += $categories->reindex_all();
 
-		$this->redirect_with_notice( 'success', sprintf( 'Queued %d records for reindex. Indexing runs in the background.', $total ) );
+		// Also purge any orphaned records left from deleted/unpublished items
+		// so they can't pile up at the top of the "Latest" sort.
+		$removed  = 0;
+		$removed += (int) $products->cleanup_orphans();
+		$removed += (int) $vendors->cleanup_orphans();
+		$removed += (int) $categories->cleanup_orphans();
+
+		$this->redirect_with_notice(
+			'success',
+			sprintf(
+				'Queued %d records for reindex (runs in the background) and removed %d orphaned record(s) from the index.',
+				$total,
+				$removed
+			)
+		);
+	}
+
+	/**
+	 * Remove orphaned records on demand (without a full reindex).
+	 */
+	public function handle_cleanup() {
+		check_admin_referer( 'zymarg_algolia_cleanup' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Forbidden' );
+		}
+
+		$client = new Zymarg_Algolia_Client();
+		if ( ! $client->is_configured() ) {
+			$this->redirect_with_notice( 'error', 'Algolia credentials are not configured yet.' );
+			return;
+		}
+
+		$p = (int) ( new Zymarg_Algolia_Products() )->cleanup_orphans();
+		$v = (int) ( new Zymarg_Algolia_Vendors() )->cleanup_orphans();
+		$c = (int) ( new Zymarg_Algolia_Categories() )->cleanup_orphans();
+		$total = $p + $v + $c;
+
+		if ( 0 === $total ) {
+			$this->redirect_with_notice( 'success', 'No orphaned records found — your index is already clean.' );
+			return;
+		}
+
+		$this->redirect_with_notice(
+			'success',
+			sprintf(
+				'Removed %d orphaned record(s) — products: %d, vendors: %d, categories: %d. The "Latest" sort should now be fast and show a full page.',
+				$total,
+				$p,
+				$v,
+				$c
+			)
+		);
 	}
 
 	protected function redirect_with_notice( $type, $msg ) {

@@ -276,6 +276,69 @@ class Zymarg_Algolia_Client {
 	}
 
 	/**
+	 * Delete many objects by ID using the batch endpoint.
+	 *
+	 * @param string $index_name Index.
+	 * @param array  $object_ids List of object IDs.
+	 * @return array|WP_Error
+	 */
+	public function delete_objects( $index_name, $object_ids ) {
+		if ( empty( $object_ids ) ) {
+			return array( 'taskID' => 0 );
+		}
+		$requests = array();
+		foreach ( $object_ids as $oid ) {
+			$requests[] = array(
+				'action' => 'deleteObject',
+				'body'   => array( 'objectID' => (string) $oid ),
+			);
+		}
+		$path = '/1/indexes/' . rawurlencode( $index_name ) . '/batch';
+		return $this->request( 'POST', $path, array( 'requests' => $requests ) );
+	}
+
+	/**
+	 * Browse every objectID currently stored in an index (paginated via cursor).
+	 *
+	 * @param string $index_name Index.
+	 * @return array|WP_Error Array of objectID strings, or WP_Error.
+	 */
+	public function browse_object_ids( $index_name ) {
+		$ids    = array();
+		$cursor = null;
+		$guard  = 0;
+
+		do {
+			$body = ( null === $cursor )
+				? array(
+					'attributesToRetrieve' => array( 'objectID' ),
+					'hitsPerPage'          => 1000,
+				)
+				: array( 'cursor' => $cursor );
+
+			$path = '/1/indexes/' . rawurlencode( $index_name ) . '/browse';
+			$res  = $this->request( 'POST', $path, $body, false );
+
+			if ( is_wp_error( $res ) ) {
+				return $res;
+			}
+
+			if ( ! empty( $res['hits'] ) && is_array( $res['hits'] ) ) {
+				foreach ( $res['hits'] as $hit ) {
+					if ( isset( $hit['objectID'] ) ) {
+						$ids[] = (string) $hit['objectID'];
+					}
+				}
+			}
+
+			$cursor = isset( $res['cursor'] ) ? $res['cursor'] : null;
+			$guard++;
+		} while ( $cursor && $guard < 200 );
+
+		return $ids;
+	}
+
+	/**
 	 * Clear an index (remove all records but keep settings).
 	 *
 	 * @param string $index_name Index.

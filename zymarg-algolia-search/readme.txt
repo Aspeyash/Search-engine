@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.0.2
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,13 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.1.0 =
+* NEW: Orphaned-record cleanup. Removes index entries for products that were deleted, trashed, or unpublished but were never removed from Algolia. These leftovers accumulated (e.g. 1,162 indexed records vs 1,007 published products) and stacked at the top of the "Latest" (date_created desc) virtual replica, making the search-results page slow (~8s) and showing fewer than a full page of products until you scrolled past them.
+* Runs automatically with every "Reindex everything now", plus a new "Remove orphaned records" button in Settings for an on-demand cleanup without a full reindex.
+* Out-of-stock products are preserved (they remain published, so they are never treated as orphans).
+* Because the sort indexes are virtual replicas of zymarg_products, cleaning the primary cleans every sort replica automatically.
+* Added client methods: browse_object_ids() and delete_objects() (batch).
 
 = 2.0.2 =
 * CHANGE: Out-of-stock products are intentionally KEPT in the search index so they remain visible in search results, regardless of WooCommerce's global "Hide out of stock items" setting. Only catalog-visibility "hidden" and unpublished products are excluded. (Reverts the 2.0.1 visibility gate, which could have hidden out-of-stock products from search.)
