@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,10 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.3.0 =
+* NEW: "Icon-only (expand on click)" option for the search bar. Shows just the search icon; clicking it expands the bar inline, then collapses again on Esc or when you click away (stays open while a query is typed). Perfect for compact headers.
+* Add it in the Elementor widget (Content tab) with an adjustable "Expanded width" slider, or via the shortcode: [zymarg_algolia_search icon_only="1"]. Off by default, so existing bars are unchanged.
 
 = 2.2.0 =
 * NEW: Automatic orphan cleanup. A daily background task removes orphaned index records on its own, so you never have to click "Remove orphaned records" manually. Uses Action Scheduler (bundled with WooCommerce) when available, otherwise WP-Cron.

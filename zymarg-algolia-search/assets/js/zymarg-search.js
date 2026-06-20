@@ -15,7 +15,7 @@
 ;(function () {
 	'use strict';
 
-	var VERSION = '2.2.0';
+	var VERSION = '2.3.0';
 
 	/* ---------------------------------------------------------------- */
 	/* Local-storage helpers                                             */
@@ -887,7 +887,7 @@
 		});
 
 		input.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape'    || e.keyCode === 27) { closeDropdown(); input.blur(); return; }
+			if (e.key === 'Escape'    || e.keyCode === 27) { closeDropdown(); input.blur(); if (wrapper.getAttribute('data-icon-only') === '1') { wrapper.classList.remove('zymarg-expanded'); } return; }
 			if (!featKeyboard) return;
 			if (e.key === 'ArrowDown' || e.keyCode === 40) { e.preventDefault(); moveActiveHit(+1); return; }
 			if (e.key === 'ArrowUp'   || e.keyCode === 38) { e.preventDefault(); moveActiveHit(-1); return; }
@@ -926,9 +926,29 @@
 			});
 		}
 
+		// Icon-only (expand on click) mode.
+		var iconOnly = wrapper.getAttribute('data-icon-only') === '1';
+		var collapseIconBar = function () {
+			if (!iconOnly) return;
+			if ((input.value || '').trim() !== '') return; // keep open while there's a query
+			wrapper.classList.remove('zymarg-expanded');
+		};
+		if (iconOnly) {
+			var iconClickTarget = wrapper.querySelector('.zymarg-algolia-inputwrap');
+			if (iconClickTarget) {
+				iconClickTarget.addEventListener('click', function (e) {
+					if (!wrapper.classList.contains('zymarg-expanded')) {
+						e.preventDefault();
+						wrapper.classList.add('zymarg-expanded');
+						try { input.focus(); } catch (err) {}
+					}
+				});
+			}
+		}
+
 		// Click outside → close.
 		document.addEventListener('click', function (e) {
-			if (!wrapper.contains(e.target)) closeDropdown();
+			if (!wrapper.contains(e.target)) { closeDropdown(); collapseIconBar(); }
 		});
 	}
 })();

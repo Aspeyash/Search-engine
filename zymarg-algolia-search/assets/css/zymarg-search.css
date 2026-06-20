@@ -1071,3 +1071,85 @@ input.zymarg-algolia-input[type="search"] {
 		font-size: 11px;
 	}
 }
+
+
+/* ============================================================ */
+/* Icon-only (expand on click) mode — opt-in via widget toggle  */
+/* or [zymarg_algolia_search icon_only="1"]. Collapsed = just    */
+/* the search icon; clicking it expands the bar inline.          */
+/* ============================================================ */
+
+.zymarg-algolia-wrapper.zymarg-icon-only {
+	width: auto;
+	max-width: none;
+	display: inline-block;
+	vertical-align: middle;
+}
+
+/* Hide the decorative background orbs in compact mode. */
+.zymarg-algolia-wrapper.zymarg-icon-only .zymarg-algolia-orb {
+	display: none;
+}
+
+/* Collapsed: the input wrap becomes a compact icon button. */
+.zymarg-algolia-wrapper.zymarg-icon-only .zymarg-algolia-inputwrap {
+	width: 48px;
+	padding: 0;
+	justify-content: center;
+	cursor: pointer;
+	overflow: hidden;
+	transition: width .28s ease, padding .28s ease;
+}
+
+.zymarg-algolia-wrapper.zymarg-icon-only .zymarg-algolia-icon {
+	margin: 0;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+/* Hide the input + clear button while collapsed. */
+.zymarg-algolia-wrapper.zymarg-icon-only .zymarg-algolia-input,
+.zymarg-algolia-wrapper.zymarg-icon-only .zymarg-algolia-clear {
+	width: 0;
+	min-width: 0;
+	flex: 0 0 0;
+	padding: 0;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity .2s ease;
+}
+
+/* Expanded: open the bar to its configured width. */
+.zymarg-algolia-wrapper.zymarg-icon-only.zymarg-expanded .zymarg-algolia-inputwrap {
+	width: var(--zymarg-expanded-width, 320px);
+	max-width: 90vw;
+	padding: 0 12px 0 14px;
+	justify-content: flex-start;
+	cursor: text;
+}
+
+.zymarg-algolia-wrapper.zymarg-icon-only.zymarg-expanded .zymarg-algolia-icon {
+	margin-right: 10px;
+}
+
+.zymarg-algolia-wrapper.zymarg-icon-only.zymarg-expanded .zymarg-algolia-input {
+	width: auto;
+	flex: 1;
+	min-width: 0;
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.zymarg-algolia-wrapper.zymarg-icon-only.zymarg-expanded .zymarg-algolia-clear {
+	width: auto;
+	flex: 0 0 auto;
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* Keep the dropdown readable even though the wrapper is narrow. */
+.zymarg-algolia-wrapper.zymarg-icon-only.zymarg-expanded .zymarg-algolia-dropdown {
+	min-width: var(--zymarg-expanded-width, 320px);
+	max-width: 90vw;
+}

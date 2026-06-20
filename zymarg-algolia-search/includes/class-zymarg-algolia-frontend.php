@@ -215,6 +215,7 @@ class Zymarg_Algolia_Frontend {
 		$no_empty    = ! empty( $args['noEmpty'] );
 		$no_clear    = ! empty( $args['noClear'] );
 		$clear_left  = ! empty( $args['clearLeft'] );
+		$icon_only   = ! empty( $args['iconOnly'] );
 
 		// Honor the global "CTA Mode" setting (1.0.12+). When the user has
 		// chosen to show the CTA on the search results page (or hidden it
@@ -246,6 +247,7 @@ class Zymarg_Algolia_Frontend {
 		if ( $no_empty )    $classes[] = 'zymarg-no-empty';
 		if ( $no_clear )    $classes[] = 'zymarg-no-clear';
 		if ( $clear_left )  $classes[] = 'zymarg-clear-left';
+		if ( $icon_only )   $classes[] = 'zymarg-icon-only';
 		$wrap_cls = implode( ' ', $classes );
 
 		// Section visibility flags as data attributes; JS reads these per wrapper.
@@ -253,6 +255,7 @@ class Zymarg_Algolia_Frontend {
 			' data-show-categories="' . ( $show_categories ? '1' : '0' ) . '"' .
 			' data-show-vendors="' . ( $show_vendors ? '1' : '0' ) . '"' .
 			' data-category-scope="' . ( $category_scope ? '1' : '0' ) . '"' .
+			' data-icon-only="' . ( $icon_only ? '1' : '0' ) . '"' .
 			' data-spinner-mode="' . esc_attr( $spinner_mode ) . '"';
 
 		ob_start();

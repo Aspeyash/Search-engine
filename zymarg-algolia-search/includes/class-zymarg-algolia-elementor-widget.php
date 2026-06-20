@@ -189,6 +189,40 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_control(
+			'icon_only',
+			array(
+				'label'        => __( 'Icon-only (expand on click)', 'zymarg-algolia' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'description'  => __( 'Show only a search icon. Clicking it expands the search bar inline. Great for compact headers.', 'zymarg-algolia' ),
+				'label_on'     => __( 'On', 'zymarg-algolia' ),
+				'label_off'    => __( 'Off', 'zymarg-algolia' ),
+				'default'      => '',
+				'return_value' => 'yes',
+			)
+		);
+
+		$this->add_responsive_control(
+			'expanded_width',
+			array(
+				'label'       => __( 'Expanded width (icon-only)', 'zymarg-algolia' ),
+				'description' => __( 'How wide the bar opens when the icon is clicked. Only applies when Icon-only is ON.', 'zymarg-algolia' ),
+				'type'        => \Elementor\Controls_Manager::SLIDER,
+				'size_units'  => array( 'px', 'vw' ),
+				'range'       => array(
+					'px' => array( 'min' => 180, 'max' => 720, 'step' => 10 ),
+					'vw' => array( 'min' => 40,  'max' => 100, 'step' => 1 ),
+				),
+				'default'     => array( 'size' => 320, 'unit' => 'px' ),
+				'condition'   => array(
+					'icon_only' => 'yes',
+				),
+				'selectors'   => array(
+					'{{WRAPPER}} .zymarg-algolia-wrapper.zymarg-icon-only.zymarg-expanded .zymarg-algolia-inputwrap' => 'width: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+
 		$this->add_responsive_control(
 			'max_width',
 			array(
@@ -906,6 +940,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 		$show_categories = ! isset( $settings['show_categories_section'] ) || 'yes' === $settings['show_categories_section'];
 		$show_vendors    = isset( $settings['show_vendors_section'] ) && 'yes' === $settings['show_vendors_section'];
 		$category_scope  = isset( $settings['category_scope'] ) && 'yes' === $settings['category_scope'];
+		$icon_only       = isset( $settings['icon_only'] ) && 'yes' === $settings['icon_only'];
 
 		// Loading spinner mode (1.0.17). Default: 'searching' (current behavior).
 		$spinner_mode = isset( $settings['spinner_mode'] ) ? (string) $settings['spinner_mode'] : 'searching';
@@ -933,6 +968,7 @@ class Zymarg_Algolia_Elementor_Widget extends \Elementor\Widget_Base {
 			'showVendors'    => $show_vendors,
 			'spinnerMode'    => $spinner_mode,
 			'categoryScope'  => $category_scope,
+			'iconOnly'       => $icon_only,
 		) );
 	}
 }
