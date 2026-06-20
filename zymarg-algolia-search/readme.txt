@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,12 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.0.2 =
+* CHANGE: Out-of-stock products are intentionally KEPT in the search index so they remain visible in search results, regardless of WooCommerce's global "Hide out of stock items" setting. Only catalog-visibility "hidden" and unpublished products are excluded. (Reverts the 2.0.1 visibility gate, which could have hidden out-of-stock products from search.)
+* Kept: reindex now removes products that are no longer indexable (hidden/unpublished) so stale records don't linger.
+* Note: the "Empty card response" error on the search-results "Latest" sort is resolved by the Search Result Page plugin v1.0.1 (it skips pages whose products cannot be rendered). This plugin keeps out-of-stock products searchable.
+* A `zymarg_algolia_index_product` filter is available to customise what gets indexed.
 
 = 2.0.1 =
 * FIX: Products that WooCommerce hides (out of stock with "Hide out of stock items" enabled, or catalog-visibility "hidden") are no longer indexed, and are removed from the index on reindex and on stock-status change. Previously these were indexed but the product grid refused to render them, causing an "Empty card response" error on the search-results page — most visibly under the "Latest" sort (e.g. a broad query like "A" where the newest products were out of stock).
