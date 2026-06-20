@@ -50,19 +50,27 @@ class Zymarg_Algolia_Frontend {
 			true
 		);
 
-		// InstantSearch.js (UMD).
-		wp_register_script(
-			'instantsearch-js',
-			'https://cdn.jsdelivr.net/npm/instantsearch.js@4.68.1/dist/instantsearch.production.min.js',
-			array( 'algoliasearch' ),
-			'4.68.1',
-			true
-		);
+		// Algolia Insights (only when the feature is enabled).
+		$insights_on = ! empty( zymarg_algolia_get_setting( 'feat_insights' ) );
+		if ( $insights_on ) {
+			wp_register_script(
+				'search-insights',
+				'https://cdn.jsdelivr.net/npm/search-insights@2.13.0/dist/search-insights.min.js',
+				array(),
+				'2.13.0',
+				true
+			);
+		}
+
+		$deps = array( 'algoliasearch' );
+		if ( $insights_on ) {
+			$deps[] = 'search-insights';
+		}
 
 		wp_register_script(
 			'zymarg-algolia-search',
 			ZYMARG_ALGOLIA_URL . 'assets/js/zymarg-search.js',
-			array( 'instantsearch-js' ),
+			$deps,
 			ZYMARG_ALGOLIA_VERSION,
 			true
 		);
@@ -95,6 +103,24 @@ class Zymarg_Algolia_Frontend {
 					'viewAll'    => __( 'See all results', 'zymarg-algolia' ),
 				),
 				'currencySym'   => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol() ) : '$',
+
+				// --- Search Engine 2.0 feature flags ---
+				'features'      => array(
+					'fast'        => ! empty( zymarg_algolia_get_setting( 'feat_fast' ) ),
+					'keyboard'    => ! empty( zymarg_algolia_get_setting( 'feat_keyboard' ) ),
+					'recent'      => ! empty( zymarg_algolia_get_setting( 'feat_recent' ) ),
+					'insights'    => ! empty( zymarg_algolia_get_setting( 'feat_insights' ) ),
+					'logNoResults'=> ! empty( zymarg_algolia_get_setting( 'feat_no_results_log' ) ),
+					'suggestions' => ! empty( zymarg_algolia_get_setting( 'feat_suggestions' ) ) && '' !== trim( (string) zymarg_algolia_get_setting( 'suggestions_index' ) ),
+				),
+				'suggestionsIndex' => zymarg_algolia_get_setting( 'suggestions_index' ),
+				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+				'logNonce'      => wp_create_nonce( 'zymarg_algolia_log_no_results' ),
+				'i18nExtra'     => array(
+					'recent'      => __( 'Recent searches', 'zymarg-algolia' ),
+					'suggestions' => __( 'Suggestions', 'zymarg-algolia' ),
+					'clearRecent' => __( 'Clear', 'zymarg-algolia' ),
+				),
 			)
 		);
 

@@ -65,6 +65,15 @@ class Zymarg_Algolia_Settings {
 		$out['auto_index']      = ! empty( $input['auto_index'] ) ? 1 : 0;
 		$out['enable_in_admin'] = ! empty( $input['enable_in_admin'] ) ? 1 : 0;
 
+		// --- Search Engine 2.0 smart features ---
+		$out['feat_fast']           = ! empty( $input['feat_fast'] ) ? 1 : 0;
+		$out['feat_keyboard']       = ! empty( $input['feat_keyboard'] ) ? 1 : 0;
+		$out['feat_recent']         = ! empty( $input['feat_recent'] ) ? 1 : 0;
+		$out['feat_insights']       = ! empty( $input['feat_insights'] ) ? 1 : 0;
+		$out['feat_no_results_log'] = ! empty( $input['feat_no_results_log'] ) ? 1 : 0;
+		$out['feat_suggestions']    = ! empty( $input['feat_suggestions'] ) ? 1 : 0;
+		$out['suggestions_index']   = isset( $input['suggestions_index'] ) ? sanitize_text_field( $input['suggestions_index'] ) : '';
+
 		// Languages.
 		$langs = isset( $input['languages'] ) ? (array) $input['languages'] : array( 'en', 'bn' );
 		$langs = array_filter( array_map( 'sanitize_key', $langs ) );
@@ -211,6 +220,82 @@ class Zymarg_Algolia_Settings {
 								value="<?php echo esc_attr( $settings['community_url'] ); ?>"
 								class="regular-text" />
 							<p class="description">Default: <code><?php echo esc_html( home_url( '/community' ) ); ?></code></p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 class="title">Search Engine 2.0 — Smart Features</h2>
+				<p class="description">
+					Every feature below can be turned on or off independently. A full plain-language
+					explanation of each one (and whether it is currently ON or OFF) is shown in your
+					<strong>WordPress Dashboard → “ZYMARG Algolia Search — Stats &amp; Analytics”</strong> widget.
+					All of these work on the Algolia free tier and are designed to keep the search bar fast.
+				</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">Faster results (cache + no flicker)</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_fast]" value="1"
+									<?php checked( ! empty( $settings['feat_fast'] ) ); ?> /> Enable
+							</label>
+							<p class="description">Remembers recent queries in memory and ignores out-of-order responses so results never flicker. Recommended ON.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Keyboard navigation</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_keyboard]" value="1"
+									<?php checked( ! empty( $settings['feat_keyboard'] ) ); ?> /> Enable
+							</label>
+							<p class="description">Move through results with ↑/↓ and open with Enter. Uses your existing highlight style — no visual change.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Recent searches</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_recent]" value="1"
+									<?php checked( ! empty( $settings['feat_recent'] ) ); ?> /> Enable
+							</label>
+							<p class="description">Shows a visitor their last few searches when they click an empty box. Stored privately in their own browser — nothing is sent to your server.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">No-results logging</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_no_results_log]" value="1"
+									<?php checked( ! empty( $settings['feat_no_results_log'] ) ); ?> /> Enable
+							</label>
+							<p class="description">Records searches that returned nothing so you can see what shoppers want but can’t find. Viewable in the Dashboard widget. Free-tier friendly.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Algolia Insights (smarter ranking)</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_insights]" value="1"
+									<?php checked( ! empty( $settings['feat_insights'] ) ); ?> /> Enable
+							</label>
+							<p class="description">Sends anonymous click events to Algolia so results improve over time. Opt-in. Works on the free tier.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Query Suggestions</th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_suggestions]" value="1"
+									<?php checked( ! empty( $settings['feat_suggestions'] ) ); ?> /> Enable
+							</label>
+							<p class="description">As-you-type search suggestions. Requires a Query Suggestions index created in your Algolia dashboard — enter its name below.</p>
+							<p style="margin-top:8px;">
+								<input name="<?php echo esc_attr( self::OPTION ); ?>[suggestions_index]" type="text"
+									value="<?php echo esc_attr( $settings['suggestions_index'] ); ?>"
+									class="regular-text" placeholder="e.g. zymarg_products_query_suggestions" />
+							</p>
+							<p class="description">Leave the toggle off (or this field empty) if you haven’t created a suggestions index yet.</p>
 						</td>
 					</tr>
 				</table>

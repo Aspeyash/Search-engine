@@ -2,9 +2,9 @@
 Contributors: zymarg
 Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
-Tested up to: 6.5
+Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,17 @@ Features:
 5. Place the search bar with the shortcode `[zymarg_algolia_search]` (works in Elementor, Astra header, widgets, anywhere).
 
 == Changelog ==
+
+= 2.0.0 =
+* NEW: "Search Engine 2.0" smart features, each with its own on/off toggle in Settings and a full reference note in the WP Dashboard widget.
+* NEW: Keyboard navigation in the dropdown (Up/Down to move, Enter to open) using the existing highlight style.
+* NEW: Recent searches — shows a user's last few queries on focus (stored privately in their own browser).
+* NEW: Query Suggestions — optional as-you-type suggestions from an Algolia Query Suggestions index.
+* NEW: Algolia Insights (opt-in) — sends click events so search ranking improves over time.
+* NEW: No-results logging — captures searches that returned nothing, viewable in the Dashboard widget (works on the free tier without relying on Algolia analytics retention).
+* PERF: Request-sequence guard + in-memory cache prevent stale result flashes and make repeat searches instant.
+* PERF: Removed the unused InstantSearch.js library from the frontend (smaller, faster page loads).
+* The dropdown animation and the SEO-safe ?s= results-page handoff are unchanged.
 
 = 1.0.0 =
 * Initial release.

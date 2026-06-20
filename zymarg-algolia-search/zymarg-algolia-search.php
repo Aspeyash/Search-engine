@@ -3,7 +3,7 @@
  * Plugin Name:       ZYMARG Algolia Search
  * Plugin URI:        https://github.com/Aspeyash/Search-engine-
  * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board.
- * Version:           1.0.4
+ * Version:           2.0.0
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '1.0.4' );
+define( 'ZYMARG_ALGOLIA_VERSION', '2.0.0' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );
@@ -46,6 +46,15 @@ function zymarg_algolia_default_settings() {
 		'enable_in_admin' => 1,
 		'no_results_text' => "Couldn't find what you're looking for?",
 		'request_btn'     => 'Request Here',
+
+		// --- Search Engine 2.0 smart features (each toggleable) ---
+		'feat_fast'          => 1, // Request-sequence guard + in-memory cache (performance).
+		'feat_keyboard'      => 1, // Up/Down/Enter keyboard navigation in the dropdown.
+		'feat_recent'        => 1, // Recent searches (stored in the visitor's own browser).
+		'feat_insights'      => 0, // Algolia Insights click events (opt-in, helps ranking).
+		'feat_no_results_log'=> 1, // Log searches that returned no results (free-tier friendly).
+		'feat_suggestions'   => 0, // As-you-type Query Suggestions (needs a suggestions index).
+		'suggestions_index'  => '', // Algolia Query Suggestions index name (optional).
 	);
 }
 
@@ -86,6 +95,7 @@ require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-frontend.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-shortcode.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-updater.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-dashboard.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-logger.php';
 
 /**
  * Declare compatibility with WooCommerce features (HPOS + Blocks).
@@ -123,6 +133,9 @@ function zymarg_algolia_boot() {
 	// Frontend.
 	new Zymarg_Algolia_Frontend();
 	new Zymarg_Algolia_Shortcode();
+
+	// No-results logger (handles frontend admin-ajax for all users).
+	new Zymarg_Algolia_Logger();
 
 	// GitHub auto-updater (admin only).
 	if ( is_admin() ) {
