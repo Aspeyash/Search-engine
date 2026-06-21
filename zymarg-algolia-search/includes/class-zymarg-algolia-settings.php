@@ -28,8 +28,8 @@ class Zymarg_Algolia_Settings {
 
 	public function menu() {
 		add_options_page(
-			'ZYMARG Algolia Search',
-			'ZYMARG Algolia',
+			'Search Engine',
+			'Search Engine',
 			'manage_options',
 			self::SLUG,
 			array( $this, 'render' )
@@ -157,7 +157,7 @@ class Zymarg_Algolia_Settings {
 		$msg    = isset( $_GET['zymarg_msg'] ) ? sanitize_text_field( wp_unslash( $_GET['zymarg_msg'] ) ) : '';
 		?>
 		<div class="wrap">
-			<h1>ZYMARG Algolia Search</h1>
+			<h1>Search Engine</h1>
 
 			<?php if ( $notice ) : ?>
 				<div class="notice notice-<?php echo esc_attr( $notice ); ?> is-dismissible">

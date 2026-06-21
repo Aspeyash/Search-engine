@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,9 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.4.1 =
+* Renamed the admin settings menu and page heading from "ZYMARG Algolia" to "Search Engine" (Settings -> Search Engine). No functional changes.
 
 = 2.4.0 =
 * FIX: The dropdown's "See all results" button now goes to the ZYMARG search results page (same place as pressing Enter) instead of an unrelated /?s= URL, so it works. The results-page URL is now defined once and filterable via `zymarg_algolia_search_results_url`.
