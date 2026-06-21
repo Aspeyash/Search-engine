@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,10 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.6.0 =
+* NEW: The settings screen is now a tabbed card layout — Credentials, Search behavior, Smart Features, No-results CTA, Tools, and Quick Reference & Notes. Clicking a tab instantly shows only that section (no page reload). The active tab is remembered across saves.
+* FIX: Restored the "Settings saved." confirmation notice (it had stopped showing after the menu moved to a top-level page).
 
 = 2.5.0 =
 * Moved the settings to a dedicated top-level admin menu, "Search Engine" (with a search icon), so it's reachable in one click from the sidebar instead of buried under Settings.

@@ -167,17 +167,31 @@ class Zymarg_Algolia_Settings {
 				</div>
 			<?php endif; ?>
 
+			<?php if ( ! empty( $_GET['settings-updated'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><strong>Settings saved.</strong></p></div>
+			<?php endif; ?>
+
 			<p>
 				Configure your Search Engine credentials, then run a full reindex. Indexing happens
 				automatically in the background whenever products, categories, or vendors are added,
 				updated, or removed.
 			</p>
 
+			<h2 class="nav-tab-wrapper zymarg-tabs" style="margin-bottom:18px;">
+				<a href="#" class="nav-tab nav-tab-active" data-zymarg-panel="credentials">Credentials</a>
+				<a href="#" class="nav-tab" data-zymarg-panel="behavior">Search behavior</a>
+				<a href="#" class="nav-tab" data-zymarg-panel="smart">Smart Features</a>
+				<a href="#" class="nav-tab" data-zymarg-panel="cta">No-results CTA</a>
+				<a href="#" class="nav-tab" data-zymarg-panel="tools">Tools</a>
+				<a href="#" class="nav-tab" data-zymarg-panel="reference">Quick Reference &amp; Notes</a>
+			</h2>
+
 			<?php
 			$admin_notes = (string) get_option( 'zymarg_algolia_admin_notes', '' );
 			$notes_nonce = wp_create_nonce( 'zymarg_algolia_save_notes' );
 			$results_url = apply_filters( 'zymarg_algolia_search_results_url', home_url( '/search-results/' ) );
 			?>
+			<div class="zymarg-tab" id="zymarg-tab-reference" data-zymarg-panel="reference" style="display:none;">
 			<div class="zymarg-ref" style="margin:14px 0 24px;padding:14px 18px;background:#f9f5ff;border:1px solid #e6d9ff;border-radius:10px;">
 				<h2 class="title" style="margin-top:0;">Quick Reference &amp; Notes</h2>
 				<p class="description">Everything worth remembering, in one place. Click any <code>code</code> to copy it.</p>
@@ -275,9 +289,12 @@ class Zymarg_Algolia_Settings {
 			</script>
 
 
+			</div><!-- /tab reference -->
+
 			<form method="post" action="options.php">
 				<?php settings_fields( 'zymarg_algolia_group' ); ?>
 
+				<div class="zymarg-tab is-active" id="zymarg-tab-credentials" data-zymarg-panel="credentials">
 				<h2 class="title">Search Engine credentials</h2>
 				<p class="description">
 					Get these from your search service dashboard: API Keys section.
@@ -321,6 +338,8 @@ class Zymarg_Algolia_Settings {
 					</tr>
 				</table>
 
+				</div><!-- /tab credentials -->
+				<div class="zymarg-tab" id="zymarg-tab-behavior" data-zymarg-panel="behavior" style="display:none;">
 				<h2 class="title">Search behavior</h2>
 				<table class="form-table" role="presentation">
 					<tr>
@@ -365,6 +384,8 @@ class Zymarg_Algolia_Settings {
 					</tr>
 				</table>
 
+				</div><!-- /tab behavior -->
+				<div class="zymarg-tab" id="zymarg-tab-smart" data-zymarg-panel="smart" style="display:none;">
 				<h2 class="title">Smart Features <span style="font-weight:400;color:#666;">(new in 2.0.0)</span></h2>
 				<p class="description" style="max-width:760px;">
 					Turn any feature on or off. Everything is <strong>ON by default</strong> and matches how the
@@ -453,6 +474,8 @@ class Zymarg_Algolia_Settings {
 					</tr>
 				</table>
 
+				</div><!-- /tab smart -->
+				<div class="zymarg-tab" id="zymarg-tab-cta" data-zymarg-panel="cta" style="display:none;">
 				<h2 class="title">No-results CTA</h2>
 				<table class="form-table" role="presentation">
 					<tr>
@@ -678,9 +701,11 @@ class Zymarg_Algolia_Settings {
 
 
 
-				<?php submit_button( 'Save settings' ); ?>
+				</div><!-- /tab cta -->
+				<div id="zymarg-save-row"><?php submit_button( 'Save settings' ); ?></div>
 			</form>
 
+			<div class="zymarg-tab" id="zymarg-tab-tools" data-zymarg-panel="tools" style="display:none;">
 			<hr />
 
 			<h2 class="title">Index actions</h2>
@@ -713,6 +738,57 @@ class Zymarg_Algolia_Settings {
 				<li><strong>Appearance &rarr; Widgets:</strong> drop the <em>"ZYMARG Search"</em> widget into any sidebar / header widget zone (Astra theme widget areas, footer columns, etc).</li>
 				<li><em>(Optional)</em> Legacy: the shortcode <code>[zymarg_algolia_search]</code> still works anywhere shortcodes are accepted.</li>
 			</ol>
+			</div><!-- /tab tools -->
+
+			<style>
+				.zymarg-tabs { margin-top: 6px; }
+				.zymarg-tab {
+					background: #fff;
+					border: 1px solid #dcdcde;
+					border-radius: 8px;
+					padding: 4px 18px 16px;
+					margin: 0 0 16px;
+					max-width: 1000px;
+				}
+				#zymarg-save-row { max-width: 1000px; }
+			</style>
+			<script>
+			(function () {
+				var KEY    = 'zymargActiveTab';
+				var tabs   = document.querySelectorAll('.zymarg-tabs .nav-tab');
+				var panels = document.querySelectorAll('.zymarg-tab');
+				var saveRow = document.getElementById('zymarg-save-row');
+				var formPanels = { credentials: 1, behavior: 1, smart: 1, cta: 1 };
+
+				function activate(name) {
+					var valid = false;
+					Array.prototype.forEach.call(panels, function (p) {
+						if (p.getAttribute('data-zymarg-panel') === name) { valid = true; }
+					});
+					if (!valid) { name = 'credentials'; }
+
+					Array.prototype.forEach.call(panels, function (p) {
+						p.style.display = (p.getAttribute('data-zymarg-panel') === name) ? '' : 'none';
+					});
+					Array.prototype.forEach.call(tabs, function (t) {
+						t.classList.toggle('nav-tab-active', t.getAttribute('data-zymarg-panel') === name);
+					});
+					if (saveRow) { saveRow.style.display = formPanels[name] ? '' : 'none'; }
+					try { sessionStorage.setItem(KEY, name); } catch (e) {}
+				}
+
+				Array.prototype.forEach.call(tabs, function (t) {
+					t.addEventListener('click', function (e) {
+						e.preventDefault();
+						activate(t.getAttribute('data-zymarg-panel'));
+					});
+				});
+
+				var initial = 'credentials';
+				try { var s = sessionStorage.getItem(KEY); if (s) { initial = s; } } catch (e) {}
+				activate(initial);
+			})();
+			</script>
 		</div>
 		<?php
 	}
