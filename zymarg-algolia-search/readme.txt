@@ -4,7 +4,7 @@ Tags: search, algolia, woocommerce, dokan, instantsearch, multivendor
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.6.0
+Stable tag: 2.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,10 @@ If instant search isn't firing, open your site in DevTools (F12) -> Console and 
 It returns a status object showing version, whether fetch is available, whether the config is on window, how many search wrappers are on the page, and the last error. Paste that output to support to diagnose any remaining issues.
 
 == Changelog ==
+
+= 2.6.1 =
+* IMPORTANT: The plugin now installs into a STABLE folder name (zymarg-search-engine) instead of a version-named folder. This stops the "Cannot redeclare class" fatal error that happened when a new version installed as a SECOND plugin alongside the old one. From now on, uploading a new version updates this plugin in place. (One-time step: delete any old "ZYMARG Search Engine vX.X.X" copies, then install this once.)
+* No functional code changes from 2.6.0.
 
 = 2.6.0 =
 * NEW: The settings screen is now a tabbed card layout — Credentials, Search behavior, Smart Features, No-results CTA, Tools, and Quick Reference & Notes. Clicking a tab instantly shows only that section (no page reload). The active tab is remembered across saves.
