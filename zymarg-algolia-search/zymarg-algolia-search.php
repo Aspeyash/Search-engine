@@ -3,7 +3,7 @@
  * Plugin Name:       ZYMARG Search Engine
  * Plugin URI:        https://zymarg.com
  * Description:       ZYMARG Search Engine provides an intelligent, ultra-fast marketplace search experience with instant suggestions, recent searches, trending searches, category discovery, and seamless integration with the ZYMARG Product Browser.
- * Version:           2.4.1
+ * Version:           2.5.0
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '2.4.1' );
+define( 'ZYMARG_ALGOLIA_VERSION', '2.5.0' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );
@@ -262,9 +262,9 @@ function zymarg_algolia_admin_notice() {
 	}
 	$app_id = zymarg_algolia_get_setting( 'app_id' );
 	if ( empty( $app_id ) ) {
-		$url = admin_url( 'options-general.php?page=zymarg-algolia' );
+		$url = admin_url( 'admin.php?page=zymarg-algolia' );
 		echo '<div class="notice notice-warning"><p><strong>ZYMARG Search Engine:</strong> ';
-		echo esc_html__( 'Add your Algolia credentials to enable search. ', 'zymarg-algolia' );
+		echo esc_html__( 'Add your Search Engine credentials to enable search. ', 'zymarg-algolia' );
 		echo '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Open settings', 'zymarg-algolia' ) . '</a>';
 		echo '</p></div>';
 	}

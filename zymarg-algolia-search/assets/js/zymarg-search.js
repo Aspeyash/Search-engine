@@ -15,7 +15,7 @@
 ;(function () {
 	'use strict';
 
-	var VERSION = '2.4.1';
+	var VERSION = '2.5.0';
 
 	/* ---------------------------------------------------------------- */
 	/* Local-storage helpers                                             */

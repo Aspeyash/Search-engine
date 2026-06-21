@@ -27,12 +27,14 @@ class Zymarg_Algolia_Settings {
 	}
 
 	public function menu() {
-		add_options_page(
+		add_menu_page(
 			'Search Engine',
 			'Search Engine',
 			'manage_options',
 			self::SLUG,
-			array( $this, 'render' )
+			array( $this, 'render' ),
+			'dashicons-search',
+			58
 		);
 	}
 
@@ -166,7 +168,7 @@ class Zymarg_Algolia_Settings {
 			<?php endif; ?>
 
 			<p>
-				Configure your Algolia credentials, then run a full reindex. Indexing happens
+				Configure your Search Engine credentials, then run a full reindex. Indexing happens
 				automatically in the background whenever products, categories, or vendors are added,
 				updated, or removed.
 			</p>
@@ -276,9 +278,9 @@ class Zymarg_Algolia_Settings {
 			<form method="post" action="options.php">
 				<?php settings_fields( 'zymarg_algolia_group' ); ?>
 
-				<h2 class="title">Algolia credentials</h2>
+				<h2 class="title">Search Engine credentials</h2>
 				<p class="description">
-					Get these from your Algolia dashboard: API Keys section.
+					Get these from your search service dashboard: API Keys section.
 					Application ID + Admin API Key (write) + Search-Only API Key (public, used in frontend).
 				</p>
 				<table class="form-table" role="presentation">
@@ -355,9 +357,9 @@ class Zymarg_Algolia_Settings {
 								<option value="eu"     <?php selected( 'eu',     $region ); ?>>EU / Germany / UK (analytics.de.algolia.com)</option>
 							</select>
 							<p class="description">
-								Algolia analytics is segregated by cluster region. If your Algolia cluster is in the UK, Germany, France or any EU region, choose <strong>EU</strong>.
+								Search analytics is segregated by cluster region. If your cluster is in the UK, Germany, France or any EU region, choose <strong>EU</strong>.
 								If you're not sure, pick <strong>Auto-detect</strong> — the dashboard will probe both endpoints and use whichever returns data.
-								Check your cluster region in the <a href="https://dashboard.algolia.com/account/applications/" target="_blank" rel="noopener">Algolia dashboard → Applications</a> column "Cluster".
+								Check your cluster region in the <a href="https://dashboard.algolia.com/account/applications/" target="_blank" rel="noopener">search service dashboard → Applications</a> column "Cluster".
 							</p>
 						</td>
 					</tr>
@@ -378,7 +380,7 @@ class Zymarg_Algolia_Settings {
 								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_recent]" value="1"
 									<?php checked( ! empty( $settings['feat_recent'] ) ); ?> /> Enable
 							</label>
-							<p class="description">Shows the visitor their last few searches when they focus the empty search box. For logged-in customers these also sync across their devices. Stored per-user; nothing extra is sent to Algolia.</p>
+							<p class="description">Shows the visitor their last few searches when they focus the empty search box. For logged-in customers these also sync across their devices. Stored per-user; nothing extra is sent to the search service.</p>
 						</td>
 					</tr>
 					<tr>
@@ -392,13 +394,13 @@ class Zymarg_Algolia_Settings {
 						</td>
 					</tr>
 					<tr>
-						<th scope="row">Click tracking (Algolia Insights)</th>
+						<th scope="row">Click tracking (Insights)</th>
 						<td>
 							<label>
 								<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[feat_insights]" value="1"
 									<?php checked( ! empty( $settings['feat_insights'] ) ); ?> /> Enable
 							</label>
-							<p class="description">Sends an anonymous "this result was clicked" event to Algolia so popular products gradually rank higher. No personal data. Works on the Algolia free tier. Turn off if you don't want any click events sent.</p>
+							<p class="description">Sends an anonymous "this result was clicked" event to the search service so popular products gradually rank higher. No personal data. Works on the free tier. Turn off if you don't want any click events sent.</p>
 						</td>
 					</tr>
 					<tr>
@@ -697,7 +699,7 @@ class Zymarg_Algolia_Settings {
 			</p>
 			<p class="description">
 				<strong>Remove orphaned records</strong> deletes index entries for products that were
-				deleted, trashed, or unpublished but were never removed from Algolia. These leftovers pile up
+				deleted, trashed, or unpublished but were never removed from the search index. These leftovers pile up
 				at the top of the <em>Latest</em> sort and make the search-results page slow and incomplete.
 				Out-of-stock products are kept. (This also runs automatically with every reindex.)
 			</p>
@@ -737,7 +739,7 @@ class Zymarg_Algolia_Settings {
 			$this->redirect_with_notice(
 				'error',
 				sprintf(
-					'Application ID looks malformed (got "%s"). It should be 10 uppercase letters/digits, e.g. "L8K9XQYZAB". Re-copy it from your Algolia dashboard.',
+					'Application ID looks malformed (got "%s"). It should be 10 uppercase letters/digits, e.g. "L8K9XQYZAB". Re-copy it from your search service dashboard.',
 					esc_html( $app_id )
 				)
 			);
@@ -755,7 +757,7 @@ class Zymarg_Algolia_Settings {
 			}
 			$this->redirect_with_notice(
 				'error',
-				'Algolia connection failed: ' . $result->get_error_message() . $debug_str
+				'Search Engine connection failed: ' . $result->get_error_message() . $debug_str
 			);
 			return;
 		}
@@ -763,7 +765,7 @@ class Zymarg_Algolia_Settings {
 		$count = isset( $result['items'] ) ? count( $result['items'] ) : 0;
 		$this->redirect_with_notice(
 			'success',
-			sprintf( 'Algolia connection OK. Found %d existing indices in your application.', $count )
+			sprintf( 'Search Engine connection OK. Found %d existing indices in your application.', $count )
 		);
 	}
 
@@ -810,7 +812,7 @@ class Zymarg_Algolia_Settings {
 
 		$client = new Zymarg_Algolia_Client();
 		if ( ! $client->is_configured() ) {
-			$this->redirect_with_notice( 'error', 'Algolia credentials are not configured yet.' );
+			$this->redirect_with_notice( 'error', 'Search Engine credentials are not configured yet.' );
 			return;
 		}
 
@@ -853,7 +855,7 @@ class Zymarg_Algolia_Settings {
 	}
 
 	protected function redirect_with_notice( $type, $msg ) {
-		$url = admin_url( 'options-general.php?page=' . self::SLUG );
+		$url = admin_url( 'admin.php?page=' . self::SLUG );
 		$url = add_query_arg(
 			array(
 				'zymarg_notice' => $type,

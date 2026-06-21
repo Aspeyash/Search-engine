@@ -73,7 +73,7 @@ class Zymarg_Algolia_Dashboard {
 		}
 		wp_add_dashboard_widget(
 			'zymarg_algolia_dashboard',
-			'🔍 ZYMARG Algolia Search — Stats & Analytics',
+			'🔍 Search Engine — Stats & Analytics',
 			array( $this, 'render' )
 		);
 	}
@@ -84,7 +84,7 @@ class Zymarg_Algolia_Dashboard {
 	public function render() {
 		$client = new Zymarg_Algolia_Client();
 		if ( ! $client->is_configured() ) {
-			echo '<p style="color:#b00;">Algolia credentials are not configured. <a href="' . esc_url( admin_url( 'options-general.php?page=zymarg-algolia' ) ) . '">Open settings</a></p>';
+			echo '<p style="color:#b00;">Search Engine credentials are not configured. <a href="' . esc_url( admin_url( 'admin.php?page=zymarg-algolia' ) ) . '">Open settings</a></p>';
 			return;
 		}
 
@@ -276,7 +276,7 @@ class Zymarg_Algolia_Dashboard {
 					: 'Global (analytics.algolia.com — US / Global clusters)';
 				echo '<div>Analytics region used: <strong>' . esc_html( $label ) . '</strong></div>';
 			} elseif ( ! $err ) {
-				echo '<div>Analytics region used: <em>none returned data — Algolia may still be processing your searches (4–24h delay)</em></div>';
+				echo '<div>Analytics region used: <em>none returned data — the search service may still be processing your searches (4–24h delay)</em></div>';
 			}
 			if ( $at ) {
 				echo '<div>Last fetched: ' . esc_html( wp_date( 'M j, Y g:i A', $at ) ) . '</div>';
@@ -386,7 +386,7 @@ class Zymarg_Algolia_Dashboard {
 		);
 
 		if ( empty( $app_id ) || empty( $admin_key ) ) {
-			$data['_meta']['error'] = 'Algolia App ID or Admin API Key is missing.';
+			$data['_meta']['error'] = 'App ID or Admin API Key is missing.';
 			return $data;
 		}
 
@@ -585,7 +585,7 @@ class Zymarg_Algolia_Dashboard {
 
 		$checks[] = array(
 			'level' => $app_id ? 'ok' : 'error',
-			'label' => $app_id ? 'Algolia App ID configured' : 'Algolia App ID is missing',
+			'label' => $app_id ? 'Search Engine App ID configured' : 'Search Engine App ID is missing',
 		);
 		$checks[] = array(
 			'level' => $admin_key ? 'ok' : 'error',
