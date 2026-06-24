@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       ZYMARG Algolia Search
- * Plugin URI:        https://github.com/Aspeyash/Search-engine-
- * Description:       Algolia-powered instant search for the ZYMARG marketplace. Indexes WooCommerce products, product categories, and Dokan vendors. Renders a brand-styled instant search dropdown with a custom "no results" CTA that links to the Community Request Board.
- * Version:           2.0.0
+ * Plugin Name:       ZYMARG Search Engine
+ * Plugin URI:        https://zymarg.com
+ * Description:       ZYMARG Search Engine provides an intelligent, ultra-fast marketplace search experience with instant suggestions, recent searches, trending searches, category discovery, and seamless integration with the ZYMARG Product Browser.
+ * Version:           2.6.1
  * Author:            ZYMARG
  * Author URI:        https://zymarg.com
  * License:           GPL v2 or later
@@ -12,9 +12,6 @@
  * Domain Path:       /languages
  * Requires at least: 6.0
  * Requires PHP:      7.4
- * Update URI:        https://github.com/Aspeyash/Search-engine-
- * GitHub Plugin URI: Aspeyash/Search-engine-
- * Primary Branch:    main
  * WC requires at least: 6.0
  * WC tested up to:   9.0
  *
@@ -25,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZYMARG_ALGOLIA_VERSION', '2.0.0' );
+define( 'ZYMARG_ALGOLIA_VERSION', '2.6.1' );
 define( 'ZYMARG_ALGOLIA_FILE', __FILE__ );
 define( 'ZYMARG_ALGOLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ZYMARG_ALGOLIA_URL', plugin_dir_url( __FILE__ ) );
@@ -47,14 +44,42 @@ function zymarg_algolia_default_settings() {
 		'no_results_text' => "Couldn't find what you're looking for?",
 		'request_btn'     => 'Request Here',
 
-		// --- Search Engine 2.0 smart features (each toggleable) ---
-		'feat_fast'          => 1, // Request-sequence guard + in-memory cache (performance).
-		'feat_keyboard'      => 1, // Up/Down/Enter keyboard navigation in the dropdown.
-		'feat_recent'        => 1, // Recent searches (stored in the visitor's own browser).
-		'feat_insights'      => 0, // Algolia Insights click events (opt-in, helps ranking).
-		'feat_no_results_log'=> 1, // Log searches that returned no results (free-tier friendly).
-		'feat_suggestions'   => 0, // As-you-type Query Suggestions (needs a suggestions index).
-		'suggestions_index'  => '', // Algolia Query Suggestions index name (optional).
+		// --- Smart feature on/off switches (2.0.0) ---
+		// Each defaults to 1 (ON) so behavior is identical to 1.0.36 until you
+		// choose to turn something off in Settings -> Smart Features.
+		'feat_recent'       => 1, // Recent searches shown on empty focus.
+		'feat_keyboard'     => 1, // Up/Down/Enter keyboard navigation in the dropdown.
+		'feat_insights'     => 1, // Click tracking sent to Algolia (improves ranking over time).
+		'feat_related'      => 1, // "Showing related results for ..." fallback when 0 exact matches.
+		'feat_result_count' => 1, // The "N results" count badge at the top of the dropdown.
+
+		// Automatically remove orphaned index records in the background (daily).
+		'auto_cleanup'      => 1,
+
+		// Analytics endpoint region (1.0.14).
+		// 'auto'   : try Global first, fall back to EU on empty response (default).
+		// 'global' : force global endpoint (analytics.algolia.com).
+		// 'eu'     : force EU endpoint (analytics.de.algolia.com).
+		'analytics_region' => 'auto',
+
+		// CTA placement (1.0.12).
+		// 'dropdown'    : show inside the search dropdown when zero results match (default).
+		// 'search_page' : show as a banner below the WordPress search results page (always).
+		// 'hidden'      : completely disabled, nothing renders.
+		'cta_mode'          => 'dropdown',
+		'cta_max_width'     => 800,
+		'cta_padding_y'     => 32,
+		'cta_padding_x'     => 32,
+		'cta_margin_top'    => 40,
+		'cta_margin_bottom' => 40,
+		'cta_radius'        => 14,
+		'cta_text_size'     => 18,
+		'cta_btn_size'      => 16,
+		'cta_bg'            => '#ffffff',
+		'cta_text_color'    => '#1a1a1a',
+		'cta_btn_bg'        => '#7B3FE4',
+		'cta_btn_color'     => '#ffffff',
+		'cta_align'         => 'center',
 	);
 }
 
@@ -93,9 +118,10 @@ require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-categories.php
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-settings.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-frontend.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-shortcode.php';
-require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-updater.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-block.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-search-cta.php';
 require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-dashboard.php';
-require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-logger.php';
+require_once ZYMARG_ALGOLIA_PATH . 'includes/class-zymarg-algolia-search-sync.php';
 
 /**
  * Declare compatibility with WooCommerce features (HPOS + Blocks).
@@ -123,6 +149,7 @@ function zymarg_algolia_boot() {
 	// Admin only.
 	if ( is_admin() ) {
 		new Zymarg_Algolia_Settings();
+		new Zymarg_Algolia_Dashboard();
 	}
 
 	// Indexers (run on all requests so save_post hooks fire).
@@ -130,27 +157,75 @@ function zymarg_algolia_boot() {
 	new Zymarg_Algolia_Vendors();
 	new Zymarg_Algolia_Categories();
 
-	// Frontend.
+	// Frontend + placement options.
 	new Zymarg_Algolia_Frontend();
 	new Zymarg_Algolia_Shortcode();
+	new Zymarg_Algolia_Block();
+	new Zymarg_Algolia_Search_CTA();
+	new Zymarg_Algolia_Search_Sync(); // Cross-device recent-search sync (1.0.36).
 
-	// No-results logger (handles frontend admin-ajax for all users).
-	new Zymarg_Algolia_Logger();
-
-	// GitHub auto-updater (admin only).
-	if ( is_admin() ) {
-		new Zymarg_Algolia_Updater(
-			ZYMARG_ALGOLIA_FILE,
-			array(
-				'owner'  => 'Aspeyash',
-				'repo'   => 'Search-engine-',
-				'branch' => 'main',
-			)
-		);
-		new Zymarg_Algolia_Dashboard();
-	}
+	// Make sure the automatic orphan-cleanup schedule matches the setting.
+	zymarg_algolia_sync_cleanup_schedule();
 }
 add_action( 'plugins_loaded', 'zymarg_algolia_boot', 20 );
+
+/**
+ * Recurring background task: remove orphaned index records automatically so
+ * the user never has to flush manually. Orphans are records left behind when
+ * products are removed via bulk edits / imports / programmatic changes that
+ * skip the normal delete hooks.
+ */
+function zymarg_algolia_run_orphan_cleanup() {
+	if ( ! class_exists( 'Zymarg_Algolia_Products' ) ) {
+		return;
+	}
+	$removed  = 0;
+	$removed += (int) ( new Zymarg_Algolia_Products() )->cleanup_orphans();
+	$removed += (int) ( new Zymarg_Algolia_Vendors() )->cleanup_orphans();
+	$removed += (int) ( new Zymarg_Algolia_Categories() )->cleanup_orphans();
+
+	update_option(
+		'zymarg_algolia_last_cleanup',
+		array(
+			'time'    => time(),
+			'removed' => $removed,
+		),
+		false
+	);
+}
+add_action( 'zymarg_algolia_cleanup_cron', 'zymarg_algolia_run_orphan_cleanup' );
+
+/**
+ * Keep the daily cleanup schedule in sync with the "auto_cleanup" setting.
+ * Prefers Action Scheduler (bundled with WooCommerce); falls back to WP-Cron.
+ */
+function zymarg_algolia_sync_cleanup_schedule() {
+	$enabled = (bool) zymarg_algolia_get_setting( 'auto_cleanup', 1 );
+
+	// Action Scheduler (reliable, used by WooCommerce).
+	if ( function_exists( 'as_has_scheduled_action' ) && function_exists( 'as_schedule_recurring_action' ) ) {
+		$has = as_has_scheduled_action( 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+		if ( $enabled && ! $has ) {
+			as_schedule_recurring_action( time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+		} elseif ( ! $enabled && $has && function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+		}
+		// Also clear any leftover WP-Cron version.
+		$wp = wp_next_scheduled( 'zymarg_algolia_cleanup_cron' );
+		if ( $wp ) {
+			wp_unschedule_event( $wp, 'zymarg_algolia_cleanup_cron' );
+		}
+		return;
+	}
+
+	// WP-Cron fallback.
+	$scheduled = wp_next_scheduled( 'zymarg_algolia_cleanup_cron' );
+	if ( $enabled && ! $scheduled ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'zymarg_algolia_cleanup_cron' );
+	} elseif ( ! $enabled && $scheduled ) {
+		wp_unschedule_event( $scheduled, 'zymarg_algolia_cleanup_cron' );
+	}
+}
 
 /**
  * Activation: seed default settings, schedule first reindex.
@@ -171,6 +246,10 @@ register_activation_hook( __FILE__, 'zymarg_algolia_activate' );
  */
 function zymarg_algolia_deactivate() {
 	wp_clear_scheduled_hook( 'zymarg_algolia_reindex_batch' );
+	wp_clear_scheduled_hook( 'zymarg_algolia_cleanup_cron' );
+	if ( function_exists( 'as_unschedule_all_actions' ) ) {
+		as_unschedule_all_actions( 'zymarg_algolia_cleanup_cron', array(), 'zymarg-algolia' );
+	}
 }
 register_deactivation_hook( __FILE__, 'zymarg_algolia_deactivate' );
 
@@ -183,9 +262,9 @@ function zymarg_algolia_admin_notice() {
 	}
 	$app_id = zymarg_algolia_get_setting( 'app_id' );
 	if ( empty( $app_id ) ) {
-		$url = admin_url( 'options-general.php?page=zymarg-algolia' );
-		echo '<div class="notice notice-warning"><p><strong>ZYMARG Algolia Search:</strong> ';
-		echo esc_html__( 'Add your Algolia credentials to enable search. ', 'zymarg-algolia' );
+		$url = admin_url( 'admin.php?page=zymarg-algolia' );
+		echo '<div class="notice notice-warning"><p><strong>ZYMARG Search Engine:</strong> ';
+		echo esc_html__( 'Add your Search Engine credentials to enable search. ', 'zymarg-algolia' );
 		echo '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Open settings', 'zymarg-algolia' ) . '</a>';
 		echo '</p></div>';
 	}

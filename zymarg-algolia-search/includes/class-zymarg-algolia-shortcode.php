@@ -34,6 +34,7 @@ class Zymarg_Algolia_Shortcode {
 		$atts = shortcode_atts(
 			array(
 				'placeholder' => '',
+				'icon_only'   => '',
 			),
 			$atts,
 			'zymarg_algolia_search'
@@ -49,6 +50,10 @@ class Zymarg_Algolia_Shortcode {
 			);
 		}
 
-		return Zymarg_Algolia_Frontend::render_html();
+		$icon_only = in_array( strtolower( (string) $atts['icon_only'] ), array( '1', 'yes', 'true', 'on' ), true );
+
+		return Zymarg_Algolia_Frontend::render_html( array(
+			'iconOnly' => $icon_only,
+		) );
 	}
 }

@@ -219,6 +219,58 @@ abstract class Zymarg_Algolia_Indexer {
 	}
 
 	/**
+	 * Remove "orphan" records from the index: any record whose object no
+	 * longer corresponds to a valid (indexable) item — e.g. products that
+	 * were deleted, trashed, or unpublished but whose Algolia record was
+	 * never removed. These orphans accumulate because a normal reindex only
+	 * adds/updates current items; it never deletes leftovers.
+	 *
+	 * Out-of-stock products are NOT orphans (they stay published), so they
+	 * are preserved. Virtual replicas auto-sync, so cleaning the primary
+	 * cleans every sort replica too.
+	 *
+	 * @return int Number of orphan records removed.
+	 */
+	public function cleanup_orphans() {
+		if ( ! $this->client->is_configured() ) {
+			return 0;
+		}
+
+		$object_ids = $this->client->browse_object_ids( $this->get_index_name() );
+		if ( is_wp_error( $object_ids ) || empty( $object_ids ) ) {
+			return 0;
+		}
+
+		// Build the set of valid (currently indexable) IDs.
+		$valid = array();
+		foreach ( (array) $this->get_all_ids() as $vid ) {
+			$valid[ (string) $vid ] = true;
+		}
+
+		$prefix = $this->slug() . '_';
+		$delete = array();
+		foreach ( $object_ids as $oid ) {
+			if ( 0 !== strpos( $oid, $prefix ) ) {
+				continue; // Not one of ours; leave it alone.
+			}
+			$id = substr( $oid, strlen( $prefix ) );
+			if ( ! isset( $valid[ $id ] ) ) {
+				$delete[] = $oid;
+			}
+		}
+
+		if ( empty( $delete ) ) {
+			return 0;
+		}
+
+		foreach ( array_chunk( $delete, 1000 ) as $chunk ) {
+			$this->client->delete_objects( $this->get_index_name(), $chunk );
+		}
+
+		return count( $delete );
+	}
+
+	/**
 	 * Cron/AS callback that processes one batch.
 	 *
 	 * @param array $ids   IDs.
@@ -230,14 +282,25 @@ abstract class Zymarg_Algolia_Indexer {
 			return;
 		}
 		$records = array();
+		$delete  = array();
 		foreach ( $ids as $id ) {
 			$rec = $this->build_record( $id );
 			if ( null !== $rec ) {
 				$records[] = $rec;
+			} else {
+				// No longer indexable (e.g. went out of stock / hidden).
+				// Remove any previously-indexed copy so the grid never
+				// receives an ID it cannot render.
+				$delete[] = $this->object_id( $id );
 			}
 		}
 		if ( ! empty( $records ) ) {
 			$this->client->save_objects( $this->get_index_name(), $records );
+		}
+		if ( ! empty( $delete ) ) {
+			foreach ( $delete as $oid ) {
+				$this->client->delete_object( $this->get_index_name(), $oid );
+			}
 		}
 	}
 }
