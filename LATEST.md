@@ -1,8 +1,8 @@
 # ZYMARG Search Engine — Latest
 
-**Current version: `2.6.6`**
+**Current version: `2.6.12`**
 
-**⬇️ Download:** [ZYMARG_Search_Engine_v2.6.6.zip](https://github.com/Aspeyash/Search-engine/raw/refs/heads/main/ZYMARG_Search_Engine_v2.6.6.zip)
+**⬇️ Download:** [ZYMARG_Search_Engine_v2.6.12.zip](https://github.com/Aspeyash/Search-engine/raw/refs/heads/main/ZYMARG_Search_Engine_v2.6.12.zip)
 
 Install/update: WP Admin → Plugins → Add New → Upload Plugin → choose the zip → *Replace current with uploaded*. The inner folder slug is stable (`zymarg-search-engine/`), so upgrades update in place (no "Cannot redeclare class" duplicates).
 
@@ -10,6 +10,8 @@ Install/update: WP Admin → Plugins → Add New → Upload Plugin → choose th
 
 | Version | Notes |
 |---------|-------|
+| 2.6.12  | Per-section "See all matching …" dropdown links (products/categories/vendors) replacing the single bottom button; each toggleable in Smart Features. Needs Connection Engine v1.6.3+ for category filtering. |
+| 2.6.7–2.6.11 | Mobile fix + cleanup: product suggestions now open the correct product page on phones (root cause was a stale cached list missing permalinks; fixed via version-busted fetch + shorter cache). Removed interim experimental tap code. |
 | 2.6.6   | FIX: product suggestions open reliably now — they use the product's real permalink (like categories) instead of a ?p=ID redirect that failed for some products. |
 | 2.6.5   | FIX: clicking a product in the dropdown now opens the product page directly (was going to an empty-looking search page). Also removed the noisy per-section counts. |
 | 2.6.4   | Zero-quota dropdown: suggests product/category/vendor names from a local list as you type (0 Algolia ops); Algolia only queried on the results page. ~90% dropdown cost cut. Toggle in Smart Features, ON by default, reversible. |
