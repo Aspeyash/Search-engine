@@ -1,8 +1,8 @@
 # ZYMARG Search Engine — Latest
 
-**Current version: `2.6.3`**
+**Current version: `2.6.4`**
 
-**⬇️ Download:** [ZYMARG_Search_Engine_v2.6.3.zip](https://github.com/Aspeyash/Search-engine/raw/refs/heads/main/ZYMARG_Search_Engine_v2.6.3.zip)
+**⬇️ Download:** [ZYMARG_Search_Engine_v2.6.4.zip](https://github.com/Aspeyash/Search-engine/raw/refs/heads/main/ZYMARG_Search_Engine_v2.6.4.zip)
 
 Install/update: WP Admin → Plugins → Add New → Upload Plugin → choose the zip → *Replace current with uploaded*. The inner folder slug is stable (`zymarg-search-engine/`), so upgrades update in place (no "Cannot redeclare class" duplicates).
 
@@ -10,6 +10,7 @@ Install/update: WP Admin → Plugins → Add New → Upload Plugin → choose th
 
 | Version | Notes |
 |---------|-------|
+| 2.6.4   | Zero-quota dropdown: suggests product/category/vendor names from a local list as you type (0 Algolia ops); Algolia only queried on the results page. ~90% dropdown cost cut. Toggle in Smart Features, ON by default, reversible. |
 | 2.6.3   | Brand: WP admin now follows the ZYMARG brand design — branded settings header (Discovery Spark + wordmark left, version badge right), purple sidebar label, brand palette on the settings page + Dashboard analytics widget. Admin styling only. |
 | 2.6.2   | Updated the Discovery Spark™ loading motion (fast sequential pulse). |
 | 2.6.1   | Stable install folder slug (`zymarg-search-engine`) to stop duplicate-plugin fatals. |
